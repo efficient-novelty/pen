@@ -25,12 +25,13 @@ def actionsUnit : List AtomicDecl :=
   #eval
     let B      := Context.empty
     let H      := 2
+    -- Only the type former itself is excluded; all eliminators key to it.
     let sc     : PEN.Novelty.Scope.ScopeConfig :=
       { actions := actionsUnit
       , horizon := H
       , preMaxDepth?  := some H
       , postMaxDepth? := some 1
-      , exclude       := [declareTypeFormer "Unit"]  -- targets
+      , exclude       := [declareTypeFormer "Unit"]
       , excludeKeys   := PEN.Novelty.Scope.keysOfTargets [declareTypeFormer "Unit"] }
     match noveltyForPackage? B [declareTypeFormer "Unit"] sc with
     | none   => "NOVELTY_FAIL"

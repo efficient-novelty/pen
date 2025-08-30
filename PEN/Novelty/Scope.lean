@@ -47,7 +47,6 @@ inductive FrontierKey where
   | universe (lvl : Nat)
   | typeFormer                                 -- collapse all TFs into one class
   | ctor     (typeName : String)               -- all ctors for same host
-  | elim     (typeName : String)               -- all eliminators for same host
   | compCtor (ctorName : String)               -- all comp rules for same host
   | term     (typeName : String)               -- all general terms by host
   | exact    (t : Target)                      -- fallback (rare)
@@ -79,6 +78,18 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
 @[inline] def isPiSigmaAlias (nm T : String) : Bool :=
   (T == "Pi"    && (nm == "alias_arrow" || nm == "alias_forall" || nm == "alias_eval")) ||
   (T == "Sigma" && (nm == "alias_prod"   || nm == "alias_exists"))
+
+/-!
+Axiom 3 schema keying:
+
+  • universes → per-level key
+  • all type formers → one class (FrontierKey.typeFormer)
+  • constructors → key by host (FrontierKey.ctor host)
+  • eliminators → **always** key to typeFormer (endogenous to their host)
+  • comp rules  → key by constructor (FrontierKey.compCtor ctor)
+  • general terms → exact
+  • Pi/Σ alias / classifier schema_* → typeFormer
+-/
 
 @[inline] def keyOfTarget (t : Target) : FrontierKey :=
   match t with
