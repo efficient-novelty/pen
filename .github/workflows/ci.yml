@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install elan + requested Lean/Lake toolchain
+      - uses: leanprover/elan@v1
+        with:
+          toolchain: leanprover/lean4:v4.22.0-rc4  # or: `toolchain: $(cat lean-toolchain)`
+
+      # (optional) cache to speed up subsequent builds
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.elan
+            build
+            .lake
+          key: ${{ runner.os }}-lean-${{ hashFiles('lean-toolchain') }}
+          restore-keys: ${{ runner.os }}-lean-
+
+      # Fetch dependencies declared in lakefile.lean
+      - name: Update deps
+        run: lake update
+
+      # Compile the project
+      - name: Build
+        run: lake build
+
+      # Run tests (example module under PEN/Tests)
+      - name: Tests
+        run: lake build PEN/Tests/Novelty
