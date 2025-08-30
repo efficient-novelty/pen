@@ -80,7 +80,7 @@ def fmt (L : LedgerLine) : String :=
 def staticEnumerator (xs : List AtomicDecl) : FrontierEnumerator :=
   fun _ => xs
 
-open PEN.Novelty.Enumerators  -- for `aliasTermDeclsPiSigma`
+open PEN.Novelty.Enumerators
 
 -- Build the canonical "maps into Man" against a seed context that already has
 -- the ingredients available by τ≈13, so the enumerator emits the full set (8).
@@ -145,7 +145,6 @@ def globalActions : List AtomicDecl :=
   ]
   ++ actionsS1                 -- full S¹ package
   ++ actionsClassifierMan      -- << Man TF + closure(schema_Man) + eliminator(C∞_Man)
-  ++ aliasTermDeclsPiSigma     -- Π/Σ aliases (typed to Π/Σ)
   --  ++ manMapDecls8          -- REMOVE: don't expose Man maps globally
 
 

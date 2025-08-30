@@ -29,6 +29,7 @@ import PEN.Novelty.Novelty
 import PEN.Novelty.Enumerators
 import PEN.Select.Bar
 import PEN.Select.Discover
+import PEN.Core.Levels
 
 namespace PEN.Select.Engine
 
@@ -38,29 +39,9 @@ open PEN.Novelty.Novelty
 open PEN.Novelty.Enumerators
 open PEN.Select.Bar
 open PEN.Novelty.Scope
+open PEN.Core.Levels
 
-/-- Crude "level" from names; extend as you refine Levels.lean. -/
-@[inline] def levelOfTypeName (s : String) : Nat :=
-  if s == "Pi" || s == "Sigma" || s == "Man" then 1 else 0
-
-@[inline] def levelOfDecl : AtomicDecl → Nat
-  | .declareUniverse _      => 0
-  | .declareTypeFormer n    => levelOfTypeName n
-  | .declareConstructor _ T => levelOfTypeName T
-  | .declareEliminator _ T  => Nat.max 1 (levelOfTypeName T)
-  | .declareCompRule _ _    => 1
-  | .declareTerm _ T        => levelOfTypeName T
-
-/-- Max "level" already present in the context. -/
-def contextLevel (Γ : Context) : Nat :=
-  let fromTF := Γ.typeFormers.foldl (fun m n => Nat.max m (levelOfTypeName n)) 0
-  let fromElim := if Γ.eliminators.isEmpty then 0 else 1
-  let fromComp := if Γ.compRules.isEmpty then 0 else 1
-  Nat.max fromTF (Nat.max fromElim fromComp)
-
-/-- Level of a candidate X (max of its target atoms). -/
-def targetLevel (targets : List AtomicDecl) : Nat :=
-  targets.foldl (fun m t => Nat.max m (levelOfDecl t)) 0
+@[inline] def levelEnv : LevelEnv := defaultLevelEnv
 
 
 /-! ## Engine configuration and state -/
@@ -158,7 +139,7 @@ def isFib (n : Nat) : Bool :=
   ts.all (fun t => holdsDecl Γ t)
 
 @[inline] def derivationLevelsOK (allow : List Nat) (d : PEN.CAD.Derivation) : Bool :=
-  d.all (fun a => allow.any (· == levelOfDecl a))
+  d.all (fun a => allow.any (· == levelOfDecl levelEnv a))
 
 @[inline] def namesOfNewTypeFormers (ts : List AtomicDecl) : List String :=
   ts.foldl (fun acc a =>
@@ -194,7 +175,7 @@ def isFib (n : Nat) : Bool :=
 
 
 @[inline] def isClassifierTypeName (s : String) : Bool :=
-  levelOfTypeName s = 1   -- your existing classification: Pi/Sigma/Man ↦ 1
+  levelOfType levelEnv s = 1   -- Pi/Sigma/Man ↦ 1
 
 @[inline] def compRulesForElimsIn
   (actions : List AtomicDecl) (elims : List AtomicDecl) : List AtomicDecl :=
@@ -460,7 +441,8 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       let freshClass := freshTFs.filter isClassifierTypeName
       let dropElims  := eliminatorsForTypesIn cfg.actions freshClass
       let dropComps  := compRulesForElimsIn  cfg.actions dropElims
-      ([enumPiSigmaAliasesGlobal], cfg.actions, PEN.Novelty.Scope.dedupBEq (dropElims ++ dropComps))
+      let actionsPair := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
+      ([], actionsPair, PEN.Novelty.Scope.dedupBEq (dropElims ++ dropComps))
     else if isClassifierTFSolo X.targets then
       -- Endogenous-infrastructure exclusion for a singleton classifier
       let freshTFs   := namesOfNewTypeFormers X.targets
@@ -507,7 +489,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       let bar := acceptanceBar cfg.barMode hist
       let δ   := rep.rho - bar
       let usedLvls :=
-        let raw := X.steps.map levelOfDecl
+        let raw := X.steps.map (levelOfDecl levelEnv)
         raw.foldl (fun acc ℓ => if acc.any (· == ℓ) then acc else acc ++ [ℓ]) []
       some { x := X, report := rep, bar := bar, overshoot := δ, usedLvls := usedLvls }
 
@@ -590,11 +572,11 @@ def tickDiscover (cfg : DiscoverConfig) (st : EngineState) : XTickResult :=
 
 
     -- Axiom 5 admissibility: level cap + foundation constraint (as you already had)
-    let Lstar := contextLevel st.B
+    let Lstar := contextLevel levelEnv st.B
     let admissible : List DiscoveredX :=
       XsPhase.filter (fun X =>
-        let Lx := X.targets.foldl (fun m a => Nat.max m (levelOfDecl a)) 0
-        let foundationOK := X.steps.all (fun a => levelOfDecl a ≤ Lstar + 1)
+        let Lx := targetLevel levelEnv X.targets
+        let foundationOK := X.steps.all (fun a => levelOfDecl levelEnv a ≤ Lstar + 1)
         (Lx ≤ Lstar + 1) && foundationOK)
     -- score
     let evals : List XOutcome :=
@@ -640,8 +622,8 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
     none
   else
     -- Axiom 4: Level cap
-    let Lstar := contextLevel B
-    let Lx    := targetLevel pkg.targets
+    let Lstar := contextLevel levelEnv B
+    let Lx    := targetLevel levelEnv pkg.targets
     if Lx > Lstar + 1 then
       none
     else
@@ -653,7 +635,7 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
         match PEN.CAD.kappaMin? B (goalAllTargets pkg.targets) pkg.actions H with
         | none => none
         | some (_kXcert, certX) =>
-            if !(certX.deriv.all (fun a => levelOfDecl a ≤ Lstar + 1)) then none else
+            if !(certX.deriv.all (fun a => levelOfDecl levelEnv a ≤ Lstar + 1)) then none else
             -- NEW: extend exclude for fresh types in pkg.targets
             --let freshTFs  := namesOfNewTypeFormers pkg.targets
             --let dropElims := eliminatorsForTypesIn pkg.actions freshTFs
