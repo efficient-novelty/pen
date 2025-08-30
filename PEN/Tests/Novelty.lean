@@ -21,19 +21,19 @@ def actionsUnit : List AtomicDecl :=
   , declareCompRule "rec_Unit" "star"
   ]
 
-/-- ν(Unit)=1 under our Axiom 3 keying: only `star` contributes for the Unit package. -/
-#eval
-  let B      := Context.empty
-  let H      := 2
-  let sc     : PEN.Novelty.Scope.ScopeConfig :=
-    { actions := actionsUnit
-    , horizon := H
-    , preMaxDepth?  := some H
-    , postMaxDepth? := some 1
-    , exclude       := [declareTypeFormer "Unit"]  -- targets
-    , excludeKeys   := PEN.Novelty.Scope.keysOfTargets [declareTypeFormer "Unit"] }
-  match noveltyForPackage? B [declareTypeFormer "Unit"] sc with
-  | none   => "NOVELTY_FAIL"
-  | some r => s!"ν(Unit)={r.nu}  (expected 1)"
+  -- ν(Unit)=1 under our Axiom 3 keying: only `star` contributes for the Unit package.
+  #eval
+    let B      := Context.empty
+    let H      := 2
+    let sc     : PEN.Novelty.Scope.ScopeConfig :=
+      { actions := actionsUnit
+      , horizon := H
+      , preMaxDepth?  := some H
+      , postMaxDepth? := some 1
+      , exclude       := [declareTypeFormer "Unit"]  -- targets
+      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets [declareTypeFormer "Unit"] }
+    match noveltyForPackage? B [declareTypeFormer "Unit"] sc with
+    | none   => "NOVELTY_FAIL"
+    | some r => s!"ν(Unit)={r.nu}  (expected 1)"
 
 end PEN.Tests.Novelty
