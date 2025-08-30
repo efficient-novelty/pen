@@ -52,15 +52,23 @@ abbrev Seen := HashSet String
   && a.compRules    == b.compRules
   && a.terms        == b.terms
 
-/-- Turn a target declaration into a "goal reached?" predicate on contexts. -/
+/-- Turn a target declaration into a "goal reached?" predicate on contexts.
+    We perform *host-sensitive* checks for constructors, eliminators, and terms
+    by matching both the name and its associated type. -/
 @[inline] def goalOfDecl (decl : AtomicDecl) : Context → Bool :=
+  let hasCtor (Γ : Context) (c T : String) : Bool :=
+    Γ.constructors.any (fun p => p.fst == c && p.snd == T)
+  let hasElim (Γ : Context) (e T : String) : Bool :=
+    Γ.eliminators.any (fun p => p.fst == e && p.snd == T)
+  let hasTerm (Γ : Context) (m T : String) : Bool :=
+    Γ.terms.any (fun p => p.fst == m && p.snd == T)
   match decl with
   | .declareUniverse ℓ      => fun Γ => Γ.hasUniverse ℓ
   | .declareTypeFormer n    => fun Γ => Γ.hasTypeFormer n
-  | .declareConstructor c _ => fun Γ => Γ.hasConstructor c
-  | .declareEliminator  e _ => fun Γ => Γ.hasEliminator e
+  | .declareConstructor c T => fun Γ => hasCtor Γ c T
+  | .declareEliminator  e T => fun Γ => hasElim Γ e T
   | .declareCompRule e c    => fun Γ => Γ.hasCompRule e c
-  | .declareTerm t _        => fun Γ => Γ.hasTerm t
+  | .declareTerm       m T  => fun Γ => hasTerm Γ m T
 
 /--
   Internal depth-limited DFS.
