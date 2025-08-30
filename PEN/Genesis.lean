@@ -10,8 +10,10 @@
 import Init
 import PEN.Select.Engine
 import PEN.Select.Bar
+import PEN.Select.Discover
 import PEN.Novelty.Scope
 import PEN.Novelty.Enumerators
+import PEN.Novelty.Novelty
 import PEN.Grammar.HIT
 import PEN.Grammar.Classifier
 import PEN.Cert.Check
@@ -314,5 +316,122 @@ def hasElim (T e : String) (as : List AtomicDecl) : Bool :=
   let okUnit:= PEN.Cert.Check.checkKappaMinForDecl B (declareTypeFormer "Unit") acts 2 2
   let okStar:= PEN.Cert.Check.checkKappaMinForDecl B (declareConstructor "star" "Unit") acts 3 3
   (okU0 && okUnit && okStar)
+
+open PEN.Select.Engine
+open PEN.Select.Discover
+open PEN.Novelty.Novelty
+open PEN.Novelty.Scope
+open PEN.Novelty.Enumerators
+open AtomicDecl
+
+/-- Advance the discover engine up to the *pre-state* of tick `τtarget`. -/
+def preStateAt (cfg : DiscoverConfig) (st0 : EngineState) (τtarget : Nat) : EngineState :=
+  let steps := τtarget - st0.τ
+  let rec loop (i : Nat) (st : EngineState) :=
+    match i with
+    | 0        => st
+    | i'+1     =>
+        let r := tickDiscover cfg st
+        loop i' r.state'
+  loop steps st0
+
+/-- Detailed breakdown for S² at the given pre-tick. Shows κ, ν, ρ and the frontier entries. -/
+def debugS2At (τtarget : Nat) : List String :=
+  let st    := preStateAt dcfg st0 τtarget
+  let B     := st.B
+  let H     := st.H
+  let hist  := st.history
+  let rPost := postRadius H hist
+  let X     : List AtomicDecl :=
+    [ declareTypeFormer "S2"
+    , declareConstructor "base0" "S2"
+    , declareConstructor "surf0" "S2"
+    , declareEliminator "rec_S2" "S2"
+    ]
+  -- mirror evalX? policy for full HIT hosts: add host-typed Π/Σ alias terms to the action menu
+  let acts  := actionsWithPiSigmaAliases dcfg.actions "S2"
+  let sc : ScopeConfig :=
+    { actions       := acts
+    , horizon       := H
+    , preMaxDepth?  := some H
+    , postMaxDepth? := some rPost
+    , exclude       := []
+    , excludeKeys   := keysOfTargets X }   -- schema-key excludes for X’s own atoms
+  match noveltyForPackage? B X sc (maxDepthX := H) with
+  | none =>
+      [ s!"[τ={st.τ}] S2: κ-search failed under H={H}" ]
+  | some rep0 =>
+      -- apply your policy tweak (full HIT => κ := κ−1)
+      let rep := adjustKForPolicy X rep0
+      let bar := acceptanceBar dcfg.barMode hist
+      let header :=
+        s!"τ={st.τ}  H={H}  rPost={rPost}  bar={bar}"
+      let score  :=
+        s!"S2: κ={rep.kX}  ν={rep.nu}  ρ={rep.rho}  overshoot={rep.rho - bar}"
+      let rows :=
+        rep.frontier.map (fun e =>
+          let marker := if e.kPreEff > e.kPost then "★" else "·"
+          s!"  {marker} {atomLabel e.target}   (post={e.kPost}, prê={e.kPreEff})")
+      header :: score :: rows
+
+/-- Quick run: peek S² exactly at τ=21 (pre-state). -/
+#eval debugS2At 21
+
+/-- Dump all evaluated candidates X at the pre-state of τtarget, sorted by ρ descending. -/
+def dumpAllCandidatesAt (τtarget : Nat) : List String :=
+  let st    := preStateAt dcfg st0 τtarget
+  let B     := st.B
+  let H     := st.H
+  let hist  := st.history
+  let bar   := acceptanceBar dcfg.barMode hist
+
+  let XsSingles : List DiscoveredX := discoverCandidates           B H dcfg.actions
+  let XsPairs   : List DiscoveredX := discoverTFPairBundles        B H dcfg.actions
+  let XsHost    : List DiscoveredX := discoverHITBundlesGeneric    B H dcfg.actions
+  let XsRaw     : List DiscoveredX := suppressSubbundles (XsHost ++ XsPairs ++ XsSingles)
+
+  -- admissibility filter (same as tickDiscover)
+  let Lstar := contextLevel B
+  let admissible :=
+    XsRaw.filter (fun X =>
+      let Lx :=
+        X.targets.foldl (fun m a => Nat.max m (levelOfDecl a)) 0
+      let foundationOK := X.steps.all (fun a => levelOfDecl a ≤ Lstar + 1)
+      (Lx ≤ Lstar + 1) && foundationOK)
+
+  -- evaluate with the same evalX? used by the engine
+  let evals : List XOutcome :=
+    admissible.foldl
+      (fun acc X =>
+        match evalX? dcfg B H hist X with
+        | some e => acc ++ [e]
+        | none   => acc)
+      []
+
+  -- pretty printer for a bundle name
+  let atomLabel : AtomicDecl → String
+    | .declareUniverse ℓ      => s!"U{ℓ}"
+    | .declareTypeFormer n    => n
+    | .declareConstructor c _ => c
+    | .declareEliminator e _  => e
+    | .declareCompRule e c    => s!"{e}∘{c}"
+    | .declareTerm t _        => t
+
+  let nameOfX (targets : List AtomicDecl) : String :=
+    let lbls := targets.map atomLabel
+    "{" ++ String.intercalate "," lbls ++ "}"
+
+  -- sort by ρ desc, then κ asc
+  let evalsSorted :=
+    evals.qsort (fun a b =>
+      if a.report.rho == b.report.rho then a.report.kX < b.report.kX
+      else a.report.rho > b.report.rho)
+
+  (s!"τ={st.τ} H={H} bar={bar}" ::
+   evalsSorted.map (fun e =>
+     s!"ρ={e.report.rho}  κ={e.report.kX}  ν={e.report.nu}  Δ={e.report.rho - bar}   X={nameOfX e.x.targets}"))
+
+/-- One-shot dump at τ=21. -/
+#eval dumpAllCandidatesAt 21
 
 end PEN.Genesis
