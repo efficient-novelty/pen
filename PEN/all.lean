@@ -2266,7 +2266,6 @@ inductive FrontierKey where
   | universe (lvl : Nat)
   | typeFormer                                 -- collapse all TFs into one class
   | ctor     (typeName : String)               -- all ctors for same host
-  | elim     (typeName : String)               -- all eliminators for same host
   | compCtor (ctorName : String)               -- all comp rules for same host
   | term     (typeName : String)               -- all general terms by host
   | exact    (t : Target)                      -- fallback (rare)
@@ -2277,7 +2276,7 @@ deriving BEq, Repr, Inhabited
   | AtomicDecl.declareUniverse â„“      => FrontierKey.universe â„“
   | AtomicDecl.declareTypeFormer _    => FrontierKey.typeFormer
   | AtomicDecl.declareConstructor _ T => FrontierKey.ctor T
-  | AtomicDecl.declareEliminator  _ T => FrontierKey.elim T
+  | AtomicDecl.declareEliminator  _ _ => FrontierKey.typeFormer
   | AtomicDecl.declareCompRule _ c    => FrontierKey.compCtor c
   | AtomicDecl.declareTerm name _     => FrontierKey.exact t     -- or a termExact key
 
