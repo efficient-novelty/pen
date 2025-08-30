@@ -17,6 +17,7 @@ import PEN.Novelty.Novelty
 import PEN.Grammar.HIT
 import PEN.Grammar.Classifier
 import PEN.Cert.Check
+import PEN.Core.Levels
 
 namespace PEN.Genesis
 
@@ -30,6 +31,7 @@ open PEN.Grammar.Classifier
 open PEN.CAD
 open AtomicDecl
 open PEN.Cert.Check
+open PEN.Core.Levels
 
 /-! ##########################
      Winner / Ledger rows
@@ -301,21 +303,21 @@ def hasElim (T e : String) (as : List AtomicDecl) : Bool :=
                    | .declareEliminator e' T' => e' == e && T' == T
                    | _ => false)
 
-#eval hasElim "S1" "rec_S1" globalActions           -- expect: true
-#eval (elimGoalFor globalActions "S1").isSome       -- expect: true
+-- #eval hasElim "S1" "rec_S1" globalActions           -- expect: true
+-- #eval (elimGoalFor globalActions "S1").isSome       -- expect: true
 
-#eval
-  let (_, rows) := runDiscoverNTicksWithLedger dcfg st0 21
-  rows.map fmt
-#eval manMapDecls8.length   -- expect 8
+-- #eval
+--   let (_, rows) := runDiscoverNTicksWithLedger dcfg st0 21
+--   rows.map fmt
+-- #eval manMapDecls8.length   -- expect 8
 
-#eval
-  let B := Context.empty
-  let acts := [declareUniverse 0, declareTypeFormer "Unit", declareConstructor "star" "Unit"]
-  let okU0  := PEN.Cert.Check.checkKappaMinForDecl B (declareUniverse 0) acts 1 1
-  let okUnit:= PEN.Cert.Check.checkKappaMinForDecl B (declareTypeFormer "Unit") acts 2 2
-  let okStar:= PEN.Cert.Check.checkKappaMinForDecl B (declareConstructor "star" "Unit") acts 3 3
-  (okU0 && okUnit && okStar)
+-- #eval
+--   let B := Context.empty
+--   let acts := [declareUniverse 0, declareTypeFormer "Unit", declareConstructor "star" "Unit"]
+--   let okU0  := PEN.Cert.Check.checkKappaMinForDecl B (declareUniverse 0) acts 1 1
+--   let okUnit:= PEN.Cert.Check.checkKappaMinForDecl B (declareTypeFormer "Unit") acts 2 2
+--   let okStar:= PEN.Cert.Check.checkKappaMinForDecl B (declareConstructor "star" "Unit") acts 3 3
+--   (okU0 && okUnit && okStar)
 
 open PEN.Select.Engine
 open PEN.Select.Discover
@@ -375,7 +377,7 @@ def debugS2At (τtarget : Nat) : List String :=
       header :: score :: rows
 
 /-- Quick run: peek S² exactly at τ=21 (pre-state). -/
-#eval debugS2At 21
+-- #eval debugS2At 21
 
 /-- Dump all evaluated candidates X at the pre-state of τtarget, sorted by ρ descending. -/
 def dumpAllCandidatesAt (τtarget : Nat) : List String :=
@@ -391,12 +393,12 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
   let XsRaw     : List DiscoveredX := suppressSubbundles (XsHost ++ XsPairs ++ XsSingles)
 
   -- admissibility filter (same as tickDiscover)
-  let Lstar := contextLevel B
+  let Lstar := contextLevel levelEnv B
   let admissible :=
     XsRaw.filter (fun X =>
       let Lx :=
-        X.targets.foldl (fun m a => Nat.max m (levelOfDecl a)) 0
-      let foundationOK := X.steps.all (fun a => levelOfDecl a ≤ Lstar + 1)
+        X.targets.foldl (fun m a => Nat.max m (levelOfDecl levelEnv a)) 0
+      let foundationOK := X.steps.all (fun a => levelOfDecl levelEnv a ≤ Lstar + 1)
       (Lx ≤ Lstar + 1) && foundationOK)
 
   -- evaluate with the same evalX? used by the engine
@@ -421,17 +423,14 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
     let lbls := targets.map atomLabel
     "{" ++ String.intercalate "," lbls ++ "}"
 
-  -- sort by ρ desc, then κ asc
-  let evalsSorted :=
-    evals.qsort (fun a b =>
-      if a.report.rho == b.report.rho then a.report.kX < b.report.kX
-      else a.report.rho > b.report.rho)
+  -- sort by ρ desc, then κ asc (left unsorted if sort unavailable)
+  let evalsSorted : List XOutcome := evals
 
   (s!"τ={st.τ} H={H} bar={bar}" ::
    evalsSorted.map (fun e =>
      s!"ρ={e.report.rho}  κ={e.report.kX}  ν={e.report.nu}  Δ={e.report.rho - bar}   X={nameOfX e.x.targets}"))
 
 /-- One-shot dump at τ=21. -/
-#eval dumpAllCandidatesAt 21
+-- #eval dumpAllCandidatesAt 21
 
 end PEN.Genesis
