@@ -154,6 +154,7 @@ def globalActions : List AtomicDecl :=
   ]
   ++ actionsS1                 -- full S¹ package
   ++ actionsS2                                    -- include S² TF+ctors+rec (comp-rules remain frontier)
+  ++ classifierMapTermDecls "S2"                  -- give S² some radius-1 payoffs once S² exists
   ++ actionsClassifierMan
 
 
