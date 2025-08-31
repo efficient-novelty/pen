@@ -300,7 +300,7 @@ def demo_rows_21 : List String :=
   let (_, rows) := runDiscoverNTicksWithLedger dcfg st0 21
   rows.map fmt
 
-#eval demo_rows_21   -- uncomment to run the 21-tick demo
+#eval demo_rows_21
 -- #eval manMapDecls8.length   -- expect 8
 
 -- #eval
@@ -429,6 +429,6 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
 def demo_dumpAllCandidatesAt_21 : List String :=
   dumpAllCandidatesAt 21
 
--- #eval demo_dumpAllCandidatesAt_21
+#eval dumpAllCandidatesAt 5
 
 end PEN.Genesis
