@@ -1,3 +1,25 @@
+/-
+  PEN/Tests/Novelty.lean
+
+  Purpose
+  -------
+  Minimal unit test for Axiom 3 (novelty) accounting.
+
+  We build a tiny action alphabet for `Unit` and check that
+    ν(Unit) = 1
+  when evaluating the package X = { typeFormer "Unit" } with the same
+  exclusion policy used by the engine: endogenous attachments for a
+  freshly introduced type former (its eliminator and the comp-rules
+  that tie that eliminator to its constructors) do not score.
+
+  Notes
+  -----
+  • `#eval` must be followed by a single term; we wrap the test in
+    parentheses so multi-line `let` bindings are parsed as one term.
+  • We mirror the engine’s exclusion using
+      `eliminatorsForTypesIn` and `compRulesForElimsIn`.
+  • If this test prints "ν(Unit)=1 (expected 1)", it passed.
+-/
 import Init
 import PEN.CAD.Atoms
 import PEN.Novelty.Novelty

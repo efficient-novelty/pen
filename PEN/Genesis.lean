@@ -298,9 +298,9 @@ def hasElim (T e : String) (as : List AtomicDecl) : Bool :=
 -- #eval hasElim "S1" "rec_S1" globalActions           -- expect: true
 -- #eval (elimGoalFor globalActions "S1").isSome       -- expect: true
 
--- #eval
---   let (_, rows) := runDiscoverNTicksWithLedger dcfg st0 21
---   rows.map fmt
+#eval
+   let (_, rows) := runDiscoverNTicksWithLedger dcfg st0 21
+   rows.map fmt
 -- #eval manMapDecls8.length   -- expect 8
 
 -- #eval
@@ -368,8 +368,8 @@ def debugS2At (τtarget : Nat) : List String :=
           s!"  {marker} {atomLabel e.target}   (post={e.kPost}, prê={e.kPreEff})")
       header :: score :: rows
 
-/-- Quick run: peek S² exactly at τ=21 (pre-state). -/
--- #eval debugS2At 21
+/- Quick run: peek S² exactly at τ=21 (pre-state). -/
+#eval debugS2At 21
 
 /-- Dump all evaluated candidates X at the pre-state of τtarget, sorted by ρ descending. -/
 def dumpAllCandidatesAt (τtarget : Nat) : List String :=
@@ -422,7 +422,7 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
    evalsSorted.map (fun e =>
      s!"ρ={e.report.rho}  κ={e.report.kX}  ν={e.report.nu}  Δ={e.report.rho - bar}   X={nameOfX e.x.targets}"))
 
-/-- One-shot dump at τ=21. -/
--- #eval dumpAllCandidatesAt 21
+/- One-shot dump at τ=21. -/
+#eval dumpAllCandidatesAt 21
 
 end PEN.Genesis
