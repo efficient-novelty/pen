@@ -1,0 +1,640 @@
+\documentclass[11pt]{article}
+
+% Essential packages
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{mathtools}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{bbm}  
+\usepackage{mdframed}
+\usepackage{comment}
+% Double square brackets ⟦ ⟧
+\usepackage{stmaryrd} % provides \llbracket and \rrbracket
+\usepackage{caption} % or \usepackage{capt-of}
+
+
+% Page geometry
+\geometry{
+   a4paper,
+   left=1in,
+   right=1in,
+   top=1in,
+   bottom=1in
+}
+
+% Theorem environments
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem*{definition*}{Definition}
+\newtheorem{axiom}{Axiom}
+\newtheorem{principle}{Principle}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem*{theorem*}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem*{lemma*}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem*{MainA}{Theorem A — Abstract Syntax Trees for Mathematics}
+\newtheorem*{MainB}{Theorem B — Balanced Growth: The Golden-Ratio Fixed Point}
+\newtheorem*{MainC}{Theorem C — Complexity Minimality: Uniqueness of Effort}
+\newtheorem*{MainD}{Theorem D — Device-Independence: Uniqueness of Novelty}
+\newtheorem*{MainE}{Theorem E — Exclusive Actualization: Determinism of Genesis}
+\newtheorem*{MainF}{Theorem F — Fibonacci Exclusivity}
+\newtheorem*{MainG}{Theorem G — Genesis Sequence}
+
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+\newtheorem{example}{Example}
+
+% Custom commands
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\HH}{\mathbb{H}}
+\newcommand{\U}{\mathcal{U}}
+\newcommand{\Id}{\mathrm{Id}}
+\newcommand{\refl}{\mathrm{refl}}
+\newcommand{\UA}{\mathrm{UA}}
+\newcommand{\ind}{\mathrm{ind}}
+\newcommand{\base}{\mathrm{base}}
+\newcommand{\Kt}{\mathrm{Kt}}                % Levin complexity
+\newcommand{\Index}{\mathrm{Index}}            % your canonical enumeration
+\newcommand{\Enum}{\mathrm{Enum}}            % your canonical enumeration
+\newcommand{\depth}{\mathrm{depth}}          % inductive depth
+\newcommand{\indC}{\mathbbm{1}}              % indicator function
+\newcommand{\poly}{\mathrm{poly}}            % polynomial function
+\newcommand{\Lev}{\mathrm{Lev}}            % polynomial function
+
+
+\newcommand{\mloop}{\mathrm{loop}}
+\newcommand{\closure}{\operatorname{Cl}} % usage: \closure(A) → Cl(A)
+
+
+% PEN-specific notation
+\newcommand{\effort}{\kappa}
+\newcommand{\novelty}{\nu}
+\newcommand{\freeenergy}{F}
+\newcommand{\actualize}{\mathcal{A}}
+\newcommand{\Reality}{\mathcal{R}}
+\newcommand{\phiGR}{\varphi}             % golden ratio
+\newcommand{\Eff}{\Omega}                 % cumulative efficiency
+\newcommand{\Novel}{\nu}                  % novelty (savings)
+\newcommand{\Effort}{\kappa}              % effort (code length)
+\newcommand{\B}{B}                        % basis B = Reality(τ-1)
+\newcommand{\Code}{L_{\mathrm{HoTT}}}     % canonical codebook
+\newcommand{\CodeRange}{\mathsf{CodeRange}}
+\newcommand{\encodeAST}{\mathsf{encode}_{\mathrm{AST}}}
+\newcommand{\Candidates}{\mathcal{C}}
+\newcommand{\LocalBar}{\mathrm{Bar}}
+
+
+
+% Title and author
+\title{Dynamic Type Theory: Unifying Mathematics through the Principle of Efficient Novelty}
+\author{Halvor Lande}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The foundational tension in mathematics---whether truths are discovered in a Platonic realm or constructed through mental processes---has long defied resolution. Platonism explains objectivity but struggles with epistemic access, while Constructivism accounts for accessibility but falters on universality. We resolve this schism through Dynamic Type Theory (DTT), which augments Homotopy Type Theory (HoTT)---a paradox-free foundation unifying logic, computation, and geometry---with the Principle of Efficient Novelty (PEN). HoTT provides the static space of all potential mathematical structures as consistent types in a universe hierarchy. PEN supplies the dynamics: a constructive principle that generates, or 'actualizes,' a hierarchy of mathematical structures from first principles.
+
+\textbf{Central technical contribution.} We show that DTT admits a \emph{canonical, prefix-free enumeration of all logically consistent mathematical structures} (those definable in HoTT): fixing a single codebook yields a strict listing with no duplicates and no gaps; PEN then selects a deterministic subsequence of actualizations.
+
+We axiomatize PEN via five principles: discrete logical substrate, effort as Kolmogorov complexity, novelty as total bit savings, deterministic maximization of the novelty-to-effort ratio for selection, and coherence/commitment for quantum-like superpositions and irreversibility. From these axioms, we rigorously derive key theorems: the golden ratio emerges as the unique thermodynamic fixed point for stable growth; effort and novelty values are uniquely determined without free parameters; and actualizations occur exclusively at Fibonacci-numbered steps in a deterministic genesis sequence. This sequence predicts the hierarchical emergence of mathematical structures---from universes and unit types to circles, manifolds, and the Einstein-Hilbert action---culminating in a 'Big Bang' of continuous fields, explaining the historical and logical order of mathematical development.
+
+DTT transcends the Platonist–Constructivist divide: potential structures exist eternally in HoTT's logical space (objectivity), but actualize via constructive, efficiency-driven processes (accessibility). It resolves debates on excluded middle, choice, and infinity by contextualizing them within efficiency thresholds. By deriving its dynamics from principles of \emph{algorithmic efficiency rather than new mathematical postulates}, DTT offers a new direction for the foundational program, portraying mathematics as the efficient actualization of logical possibilities.
+\end{abstract}
+
+
+\section{Introduction: The Foundational Question}
+
+What does it mean for a mathematical object to exist? This deceptively simple question has profound implications for the nature of mathematical truth and knowledge. When we assert the existence of $\sqrt{2}$, or a group of order 60, or a continuous nowhere-differentiable function, what ontological claim are we making? The question sharpens when considering pathological objects: Does the set of all sets not containing themselves exist? Do inaccessible cardinals exist? Does a well-ordering of the reals exist? Mathematical history is marked by paradoxes arising from naive existence assumptions, from Russell's paradox to the independence of the continuum hypothesis.
+
+Two philosophical traditions have dominated attempts to address these issues, each capturing partial truths while remaining incomplete.
+
+\textbf{Mathematical Platonism} posits that mathematical objects exist eternally in an abstract realm, independent of human cognition or physical reality. Mathematical truths are discovered, not invented: the infinitude of primes held before humanity and persists regardless. This explains mathematics' objectivity, universality, and necessity---why theorems converge across cultures and why mathematical facts feel inevitable. Modern Platonists like G\"odel invoke mathematical intuition as a perceptual faculty analogous to sensory perception, directed at abstract objects.
+
+Yet Platonism faces a critical epistemic challenge, as articulated by Benacerraf: If mathematical objects reside in a causally isolated realm, how do physical beings access them? The success of mathematics seems to contradict its premises, requiring mysterious intellectual faculties.
+
+\textbf{Mathematical Constructivism}, exemplified by Brouwer's intuitionism, counters that mathematical objects exist only through explicit mental construction. Existence proofs must furnish construction methods; the natural numbers arise from temporal intuition of succession. This resolves epistemic access---we know what we construct---and aligns with proof-as-construction practices, as in computer-verified theorems.
+
+However, Constructivism struggles with uniformity: If mathematics is free creation, why the remarkable agreement among mathematicians? Why can't one construct contradictory objects? Objective constraints appear smuggled in without explanation, and rejecting principles like excluded middle seems to impoverish mathematics unnecessarily.
+
+Formalism attempted a pragmatic escape: Mathematics as symbol manipulation, existence as consistency. Yet G\"odel's incompleteness theorems revealed this inadequacy---systems cannot prove their consistency, and mathematics exceeds formal capture. Other syntheses---Kant's synthetic a priori, Frege-Russell logicism---faltered against non-Euclidean geometries and paradoxes.
+
+Homotopy Type Theory (HoTT) marks a breakthrough, unifying logic (propositions as types), computation (proofs as programs), and geometry (types as spaces) in a paradox-free framework. HoTT's univalence axiom equates equivalent types, capturing mathematical practice while enabling computer verification. Yet HoTT remains static: It provides the space of all consistent types but no dynamics for selection. Why study groups over arbitrary operations? Why does mathematics develop hierarchically?
+
+This paper introduces the Principle of Efficient Novelty (PEN) as the missing dynamics, yielding Dynamic Type Theory (DTT): HoTT's potential space governed by PEN's actualization process. PEN axiomatizes selection via algorithmic free energy minimization, where structures transition from potential to actual by balancing descriptive effort (Kolmogorov complexity) against generative novelty (algorithmic entropy).
+
+DTT resolves the foundational tension: Potential structures exist eternally as HoTT types (Platonist objectivity), but actualize via constructive efficiency optimization (Constructivist accessibility). We formalize PEN through five axioms, deriving theorems on the golden ratio's emergence, metric uniqueness, and Fibonacci-paced genesis. This deterministic sequence predicts mathematics' emergence---from universes to manifolds---explaining order, fruitfulness, and physical applicability.
+
+The paper proceeds as follows: Section 2 traces the historical dialectic. Section 3 details HoTT's structural foundation and limitations. Section 4 axiomatizes PEN. Section 5 proves core theorems. Section 6 derives the genesis sequence. Section 7 resolves debates with examples. Section 8 explores implications and open questions. DTT completes foundations, revealing mathematics as efficient actualization of logical possibilities.
+\section{The Historical Dialectic}
+
+The tension between discovered and constructed mathematics defines the central fault line in mathematical philosophy. To appreciate how Dynamic Type Theory resolves this, we must examine the evolution of this dialectic from ancient origins through modern crises to contemporary synthesis attempts. Each position and attempted resolution highlights the need for a framework that distinguishes potential from actual existence while incorporating efficiency dynamics.
+
+\subsection{The Platonic Thesis}
+
+Mathematical Platonism originates in Pythagorean insights that numerical ratios underlie reality, such as musical harmonies (octave: 2:1, fifth: 3:2). Plato formalized this in the \emph{Republic}, positing mathematical objects in an eternal, ideal realm more real than the physical. Knowledge involves recollection of these forms; a drawn triangle participates imperfectly in the ideal triangle.
+
+This view accounts for key features:
+\begin{enumerate}
+\item \textbf{Objectivity}: Truths independent of opinion, e.g., no rational $\pi$.
+\item \textbf{Universality}: Independent discoveries (Pythagorean theorem in multiple ancient cultures).
+\item \textbf{Necessity}: Impossibility of alternative truths (e.g., $2+2=5$).
+\item \textbf{Discovery Experience}: Intuitions like Poincar\'{e}'s sudden solutions.
+\end{enumerate}
+
+G\"odel refined this, arguing mathematical intuition perceives abstract objects, fallible yet reliable like sensory perception.
+
+Formally, Platonism implies a realm where propositions have determinate truth values independent of proof. Yet Benacerraf's dilemma persists: Causal isolation precludes knowledge. In HoTT terms, if types exist platonically, how do computational proofs (terms inhabiting types) bridge to physical minds?
+
+\subsection{The Constructivist Antithesis}
+
+Constructivism arose amid early 20th-century paradoxes, with Brouwer arguing crises stem from treating mathematics as pre-existing rather than constructed. Mathematics begins with temporal intuition: succession yields naturals via finite operations.
+
+Consequences include:
+\begin{enumerate}
+\item \textbf{Rejected Excluded Middle}: Asserting $P \vee \neg P$ requires constructing $P$ or its refutation.
+\item \textbf{Potential Infinity}: Naturals as process, rejecting completed $\mathbb{N}$.
+\item \textbf{Proof as Meaning}: ``$\exists x \, P(x)$'' demands a constructive $x$ and proof $P(x)$.
+\item \textbf{Revised Theorems}: No constructive intermediate value theorem without additional assumptions.
+\end{enumerate}
+
+This solves epistemology: Knowledge via construction. It fits practices like computer proofs (e.g., four-color theorem).
+
+Yet puzzles remain: Uniformity across minds? Objective constraints (no square circle)? In HoTT, constructivism aligns with proofs-as-terms, but lacks explanation for why certain constructions (e.g., reals via cuts) prevail universally.
+
+\subsection{Failed Syntheses}
+
+Attempts to bridge the divide incorporate insights but fall short.
+
+\textbf{Kant's Critical Philosophy}: Mathematics as synthetic a priori, rooted in cognitive structures (space/time as intuitions). Explains applicability and a priori knowledge, but non-Euclidean geometries refute rigidity---alternative geometries are conceivable and physically applicable.
+
+Formally, Kant's framework predicts Euclidean necessity, contradicted by hyperbolic geometry's consistency.
+
+\textbf{Formalism (Hilbert)}: Mathematics as formal games; existence as consistency. Program: Prove consistency finitarily. G\"odel's theorems shatter this: Arithmetic systems incomplete, unprovable consistency. Formalism ignores content and fruitfulness distinctions among consistent systems.
+
+In DTT terms, formalism lacks dynamics to select fruitful axioms.
+
+\textbf{Logicism (Frege-Russell)}: Reduce mathematics to logic. Numbers as logical classes; truths as analytic. Russell's paradox necessitates types, but restrictions seem arbitrary. G\"odel shows arithmetic requires non-logical axioms.
+
+These teach: Cognitive structure needed but flexible (contra Kant); consistency insufficient without dynamics (contra formalism); logic-mathematics links deep but incomplete (contra logicism).
+
+A successful synthesis requires:
+\begin{itemize}
+\item Objectivity without inaccessible realms.
+\item Construction without subjectivism.
+\item Formality with meaningful content.
+\item Explanation of physical effectiveness.
+\item Paradox resolution without arbitrariness.
+\end{itemize}
+
+HoTT provides structure: Paradox-free via types, unifying logic/computation/geometry. PEN adds dynamics: Efficiency selects among possibilities. DTT synthesizes: Eternal potentials (HoTT types) actualized efficiently (PEN), transcending the dialectic.
+\section{HoTT: The Structural Foundation}
+
+Homotopy Type Theory (HoTT) represents a paradigm shift in mathematical foundations, synthesizing insights from logic, computer science, and topology into a unified framework. By interpreting types as spaces, terms as points, and proofs as paths, HoTT provides a paradox-free arena for mathematics that is both constructive and geometrically intuitive. This section elucidates HoTT's core elements, achievements, and limitations, establishing it as the static substrate upon which PEN's dynamics operate. All definitions and theorems herein draw from the standard HoTT literature \cite{HoTTBook}.
+
+\subsection{The Unification in HoTT}
+
+HoTT builds upon Martin-L\"of's intensional type theory, extended with homotopy-theoretic interpretations. The foundational correspondence is the Curry-Howard isomorphism:
+- Propositions are types.
+- Proofs are terms inhabiting those types.
+
+This evolves into a richer structure where:
+- Logical implication $A \to B$ is the function type.
+- Conjunction $A \wedge B$ is the product type $A \times B$.
+- Disjunction $A \vee B$ is the sum type $A + B$.
+- Existence $\exists x : A \,.\, P(x)$ is the dependent sum $\sum_{x:A} P(x)$.
+- Universality $\forall x : A \,.\, P(x)$ is the dependent product $\prod_{x:A} P(x)$.
+
+The homotopy layer introduces identity types $\Id_A(x,y)$ (or $x =_A y$), representing proofs of equality between terms $x,y : A$. Traditionally propositional, these gain geometric structure:
+- Reflexivity: $\refl_x : x = x$ (constant path).
+- Symmetry: If $p : x = y$, then $p^{-1} : y = x$ (path reversal).
+- Transitivity: If $p : x = y$ and $q : y = z$, then $p \cdot q : x = z$ (path concatenation).
+
+Higher identities (paths between paths) yield $\infty$-groupoids, with types as spaces.
+
+The univalence axiom elevates this:
+\begin{equation}
+\UA : (A \simeq B) \simeq (A =_{\U} B),
+\end{equation}
+where $\simeq$ denotes equivalence (bijection with coherent inverses), and $\U$ is a universe type. Equivalent types are identical, formalizing mathematical practice of treating isomorphic structures interchangeably.
+
+\subsection{Key Constructs in HoTT}
+
+HoTT's power stems from its universe hierarchy and inductive definitions.
+
+\begin{definition*}[Universes]
+HoTT features a cumulative hierarchy of universes $\U_0 : \U_1 : \U_2 : \cdots$, where each $\U_i$ is a type whose terms are types of level $< i$. This avoids paradoxes like Russell's by stratification.
+\end{definition*}
+
+\begin{definition*}[Inductive Types]
+Types are defined inductively, e.g., natural numbers:
+\begin{gather*}
+0 : \N, \\
+\succ : \N \to \N, \\
+\ind_{\N} : \prod_{P:\N \to \U} P(0) \to \left( \prod_{n:\N} P(n) \to P(\succ n) \right) \to \prod_{n:\N} P(n).
+\end{gather*}
+\end{definition*}
+
+\begin{definition*}[Circle $S^1$ as HIT]
+\begin{gather*}
+\base : S^1, \\
+\mloop : \base = \base, \\
+\ind_{S^1} : \cdots \quad \text{(eliminator with computation rules)}.
+\end{gather*}
+This yields $\pi_1(S^1) \simeq \Z$.
+\end{definition*}
+
+\subsection{Achievements of HoTT}
+
+HoTT advances foundations in several dimensions:
+
+1. \textbf{Paradox-Free}: Hierarchical universes prevent self-referential paradoxes; no type of all types.
+
+2. \textbf{Constructive}: Proofs yield explicit constructions; $\exists$ requires a witness term.
+
+3. \textbf{Computational}: Terms are executable programs; normalization ensures decidable equality for finite types.
+
+4. \textbf{Higher-Dimensional}: Captures $\infty$-categories natively, e.g., homotopies as 2-paths.
+
+5. \textbf{Internal Logic}: Metatheory internalized; theorems about types are types.
+
+6. \textbf{Unification}: Handles discrete (e.g., $\N$), continuous (e.g., $\R$ via HITs), and higher structures uniformly.
+
+For instance, $S^1$ generates rich homotopy: winding numbers correspond to integers, enabling topology within type theory.
+
+\subsection{Limitations of HoTT}
+
+Despite these strengths, HoTT lacks mechanisms to explain mathematical practice:
+
+1. \textbf{Selection Problem}: All consistent types exist equally; no principle favors groups over arbitrary magmas.
+
+2. \textbf{Actualization Gap}: No distinction between potential (consistent) and actual (fundamental) structures.
+
+3. \textbf{Development Mystery}: Cannot predict hierarchical emergence (e.g., groups before categories).
+
+4. \textbf{Construction Order}: Infinite possibilities, but no guidance on pursuit order.
+
+To formalize:
+
+\begin{lemma}[Potential Space in HoTT]
+For any consistent type specification $T$ (inductive schema without contradictions), there exists a universe level $i$ such that $T : \U_i$. Thus, HoTT provides the \textbf{formal space} for all potential mathematical structures.
+\end{lemma}
+
+\begin{proof}
+By universe cumulativity and inductive closure, consistent definitions inhabit some $\U_i$. Contradictions (e.g., Russell-type) fail formation rules.
+\end{proof}
+
+This lemma positions HoTT as the "potential space" for PEN: all possibilities exist logically, but actualization requires construction.
+
+HoTT thus provides the canvas---vast, paradox-free, unified---but lacks the brush. PEN supplies the constructive evolution, yielding DTT: proven mathematics as actualized potentials.
+
+\section{Abstract Syntax Tree for Mathematics: A Canonical Indexation of Mathematical Structures}
+\label{sec:AST}
+To apply the dynamics of PEN, we must index the potential structures within HoTT. We achieve this by defining a canonical codebook that allows any mathematical structure to be uniquely represented as a binary string.
+We fix a concrete, prefix-free binary codebook $\Code$ for well-formed HoTT terms
+(terms modulo definitional equality), together with a length-only parser $\mathsf{parseLen}$ that
+recognizes a single top-level codeword. An \emph{abstract syntax tree} (AST) is the standard tree-structured representation of a formal language expression, where internal nodes denote operations and leaves denote atomic symbols.
+The encoder $\mathsf{encodeAST} : \mathrm{AST} \to \{0,1\}^*$ is compositional (tags + length-prefixed payloads) and the parser only needs sizes of subblocks; both are verified in Lean (Appendix~A).
+
+\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!5]
+\begin{MainA}
+\label{thm:AST}
+There exists a prefix-free codebook $\Code$ and a length-only parser $\mathsf{parseLen}$ such that:
+\begin{enumerate}[label=(\alph*)]
+\item \textbf{Correctness:} For every well-formed HoTT term $p$, 
+\[
+\mathsf{parseLen}(\mathsf{encodeAST}(p)) = \mathrm{some}(|\mathsf{encodeAST}(p)|).
+\]
+\item \textbf{Prefix-freedom:} If $\mathsf{encodeAST}(p)$ is a prefix of a byte string $b$ and $b$ is also a valid codeword, then $b = \mathsf{encodeAST}(p)$.
+\item \textbf{Completeness:} Every finite, well-typed HoTT term has a unique codeword in $\Code$ (modulo definitional equality).
+\end{enumerate}
+Consequently, $\Code$ induces a canonical, effective indexation 
+$\Index:\mathbb{N}\to \mathsf{AST}/\!\equiv$ of all potential mathematical structures, compatible with Kraft’s inequality and unique up to computable recoding.
+\end{MainA}
+\end{mdframed}
+
+\begin{proof}[Proof sketch] 
+(a) and (b) follow from a length-only parser spec with two local properties: (A) $\mathsf{parseLen}$ returns the exact size on encodings, and (B) prefix-stability for valid codewords. These are discharged by byte-level lemmas (size additivity of concatenation, 1-byte tags, and length-prefixed blocks). (c) follows because the encoder covers all constructors of the HoTT syntax and is injective modulo definitional equality. Full details are mechanized in Lean; see Appendix~A for the statements \texttt{parseLen\_encode} and \texttt{encode\_prefix\_free}.
+\end{proof}
+
+\begin{remark}
+This theorem turns the “space of potentials” into a concrete, prefix-free tree with exact bit-lengths.
+\end{remark}
+
+\subsection{Codebook and Canonical Indexing}
+We fix a canonical prefix-free language $\Code$ for well-formed HoTT objects (types, terms, and contexts). Let
+\[
+  \CodeRange \;=\; \{\;\encodeAST(p) \mid p \text{ a well-formed HoTT object}\;\}\subseteq \{0,1\}^\ast.
+\]
+By prefix-freeness there is a length-lexicographic bijection
+\[
+  \Index:\mathbb{N}\;\xrightarrow{\ \simeq\ }\;\CodeRange,
+\qquad
+  n \mapsto \text{the $n$th codeword by increasing length, then lex order}.
+\]
+\begin{remark}[Static indexing vs.\ sequential ordering]
+The map $\Index$ is a \emph{static} naming of logically possible structures. It does not imply any sequential ordering of these structures.
+\end{remark}
+
+
+
+\section{PEN: Actualization Dynamics}
+\label{sec:PEN}
+
+\section{The Principle of Efficient Novelty}
+\label{sec:PEN-axioms}
+
+\paragraph{Intuition.}
+Mathematics grows by converting promising \emph{potentials} into \emph{actual} structures.
+At each tick of time, candidate structures compete on a single score:
+\emph{efficiency} $\,\rho=\nu/\kappa\,$---future savings ($\nu$) per unit of construction effort ($\kappa$).
+Two simple ideas drive the dynamics:
+(i) only look one small ring out when estimating future savings;
+(ii) remember recent performance and demand that new winners clear an adaptive bar.
+This creates a self-organizing trajectory: small tools enable medium ones; mediums reveal higher-level patterns; the process repeats.
+
+\paragraph{Standing convention.}
+Fix a canonical, prefix-free, compositional codebook $\mathcal{C}=L_{\mathrm{HoTT}}$
+for well-typed HoTT terms (unique modulo definitional equality).
+The codebook is a syntactic naming device; it does not affect costs.
+
+\begin{definition}[Level]
+For any well-typed object $X$ in HoTT, define its level $\mathrm{Lev}(X)$ by:
+\[
+\mathrm{Lev}(X) :=
+\begin{cases}
+\min\{\,i\mid X:\mathcal{U}_i\,\}, & \text{if $X$ is a type},\\[2pt]
+\mathrm{Lev}(\mathrm{type\_of}(t)), & \text{if $X\!=\!t$ is a term},\\[2pt]
+i, & \text{if } X=F \text{ is a family } F:A\to \mathcal{U}_i.
+\end{cases}
+\]
+\end{definition}
+
+\vspace{-0.5em}
+\subsection{The Axioms of PEN}
+
+%===============================
+% AXIOM 1: Monotone evolution
+%===============================
+\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
+\begin{axiom}[Monotone, ticked evolution]\label{ax:mono}
+Starting from $\mathrm{Reality}(0)=\emptyset$, reality evolves by ticks $\tau\in\mathbb{N}$:
+\[
+\mathrm{Reality}(\tau-1)\subseteq \mathrm{Reality}(\tau)
+\]
+and either \textbf{realizes} new structure(s) (strict inclusion) or \textbf{idles} (equality).
+Realization is irreversible.
+\end{axiom}
+\end{mdframed}
+
+%===============================
+% AXIOM 2: Effort
+%===============================
+\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
+\begin{axiom}[Effort as shortest derivation]\label{ax:kappa}
+Fix a finite action alphabet $\mathcal{A}$ of atomic construction steps.
+A \emph{derivation} is a finite list in $\mathcal{A}$ whose cumulative effect is valid in HoTT.
+For a basis $B$ and target $Y$,
+\[
+\kappa(Y\mid B) \;=\;
+\min\{\, \text{\emph{length}}(\mathcal{D}) \;\mid\; \mathcal{D} \text{ derives } Y \text{ from } B \text{ using }\mathcal{A} \,\}.
+\]
+\emph{Finite density:} for fixed $B$ and $k$, only finitely many $Y$ satisfy $\kappa(Y\mid B)=k$.
+\end{axiom}
+\end{mdframed}
+
+
+%===============================
+% AXIOM 3: Novelty
+%===============================
+\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
+\begin{axiom}[Novelty as effort savings]\label{ax:novelty-compact}
+Let $B=\mathrm{Reality}(\tau-1)$ be the current basis and $H\in\mathbb{N}_{\geq 2}$ the horizon.
+Fix a finite action alphabet $\mathcal{A}$ and a computable \emph{schema key}
+\[
+K:\ \mathcal{A}\longrightarrow \mathsf{Keys}
+\]
+that identifies targets differing only by schema (e.g.\ all declarations that introduce a type former share the same key, whereas other atoms are distinguished by their full identity).
+Write $\sim_K$ for the induced equivalence and sum once per class. We choose $K$ so that (i) all declarations that introduce a type former share one key, (ii) any eliminator for a host $T$ and the canonical classifier schema/alias terms for $T$ share the same key as $T$'s type former, while (iii) other atoms are keyed by their full identity. Write again $X\subseteq \mathcal{A}$ for the finite set of atomic targets installed by the candidate.
+\\
+\smallskip
+\noindent\emph{Post frontier radius:} 
+\[r_\tau = 
+\begin{cases}
+  1, & \text{if $\tau \leq 2$},\\
+  \min(2, H_\tau), & \text{if $\tau > 2$}.
+\end{cases}
+\]
+\[
+\mathrm{Frontier}(X;B)\;:=\;\bigl\{\, Y\in\mathcal{A}\setminus X\ \bigm|\ \kappa\!\bigl(Y\mid B\cup X\bigr)\leq r_\tau \,\bigr\}.
+\]
+\noindent\emph{Pre-truncation at $H$:}
+\[
+\widehat{\kappa}_H(Y\mid B)\;:=\;\min\!\bigl(\,\kappa(Y\mid B)\,,\,H{+}1\,\bigr).
+\]
+\noindent\emph{Novelty and efficiency:}
+\[
+\nu(X\mid B,H)\;=\;
+\sum_{[Y]\in \mathrm{Frontier}_{\boldsymbol{r_\tau}}(X;B)/{\sim_K}}
+\max\!\bigl(0,\ \widehat{\kappa}_H(Y\mid B)-\kappa\!\bigl(Y\mid B\cup X\bigr)\bigr),
+\qquad
+\]
+\[
+\rho(X)\;=\;\frac{\nu(X\mid B,H)}{\kappa(X\mid B)}.
+\]
+
+\end{axiom}
+\end{mdframed}
+\begin{remark}
+When $X$ introduces a classifier $T$ as a new type former, frontier targets that are infrastructure attached to $T$ itself—namely its canonical eliminator $hom_T$ and its bundled closure/schema $schema_T$—are treated as part of the same structural installation and do not contribute to novelty.
+External terms (e.g., “maps into $T$”) do contribute.  
+\end{remark}
+%===============================
+% AXIOM 4: Increasingly Efficient Structures
+%===============================
+\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
+\begin{axiom}[Increasingly efficient structures]\label{ax:gate-select}
+At tick $\tau$, let $B=\mathrm{Reality}(\tau-1)$ and $H=H(\tau)$.
+\emph{Gate (admissibility).} Write $L^*:=\max\{\mathrm{Lev}(Z)\mid Z\in B\}$.
+A candidate $X$ is admissible if
+\begin{enumerate}[label=(\roman*)]
+\item \textbf{Budget: } $\kappa(X\mid B)\leq H$,
+\item \textbf{Level cap: } $\mathrm{Lev}(X)\leq L^*+1$,
+\item \textbf{Foundation: } some minimal derivation of $X$ uses only levels in $\{L^*,\,L^*-1\}$.
+\end{enumerate}
+\emph{Bar.} Let the last and penultimate realized ticks be $t_{<}$ and $t_{<<}$ with realized pairs
+$(\nu_{-1},\kappa_{-1})$ and $(\nu_{-2},\kappa_{-2})$ respectively. Define
+\[
+\mathrm{Bar}(\tau)=
+\begin{cases}
+0, & \text{if no realizations yet},\\[4pt]
+\displaystyle\frac{\nu_{-1}}{\kappa_{-1}}, & \text{if exactly one realization},\\[10pt]
+\displaystyle\frac{\nu_{-1}+\nu_{-2}}{\kappa_{-1}+\kappa_{-2}}, & \text{if two or more realizations}.
+\end{cases}
+\]
+\emph{Selection.} For all admissible $X$, compute $\rho(X)$ from Axiom~\ref{ax:novelty-compact}.
+\begin{itemize}
+\item If $\max_X \rho(X)\leq \mathrm{Bar}(\tau)$, the tick \emph{idles}.
+\item Otherwise the tick \emph{realizes} the candidates with the \emph{minimal overshoot} above the bar:
+\[
+\arg\min\bigl\{\,\rho(X)-\mathrm{Bar}(\tau)\;\bigm|\; \rho(X)>\mathrm{Bar}(\tau)\,\bigr\},
+\]
+breaking ties by minimal $\kappa(X\mid B)$; if still tied, realize all such structures (superposition).
+\end{itemize}
+\emph{Schedule.} Append the realized totals $(\sum\nu,\sum\kappa)$ to the history and update
+\[
+H(\tau{+}1)=
+\begin{cases}
+2, & \text{if $\tau$ realized (reset after success)},\\
+H(\tau)+1, & \text{if $\tau$ idled (expand search)}.
+\end{cases}
+\]
+\end{axiom}
+\end{mdframed}
+\vspace{-0.75em}
+
+
+%=================================================
+% AXIOM 5: Integration Frontier Additivity
+%=================================================
+\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
+\begin{axiom}[Integration Frontier Additivity]\label{ax:IFA}
+Fix the finite alphabet $\mathcal{A}$, the schema key $K$ from
+Axiom~\ref{ax:novelty-compact}, and the selection mechanism and schedule of
+Axiom~\ref{ax:gate-select}. Let the realized winners be
+$X_1,X_2,\dots$ at ticks $T_1<T_2<\cdots$, and write
+$B_n:=\mathrm{Reality}(T_n)$ for the post-basis after the $n$-th realization.
+Let $H_n^{*}$ denote the \emph{minimal horizon} at which $X_n$ just clears
+the bar (so $X_n$ is not selected at $H_n^{*}-1$ but is selected at $H_n^{*}$).
+
+For every $n\geq 2$ there exist finite, disjoint sets
+$\mathcal{F}^{(n)}_{n+1},\ \mathcal{F}^{(n-1)}_{n+1}\subset \mathcal{A}/\!\sim_K$
+such that
+\begin{enumerate}[label=(\alph*), itemsep=2pt]
+\item \textbf{One-step union (post ring $=1$).}
+\[
+\mathrm{Frontier}_1(X_{n+1};B_n)/{\sim_K}
+\;=\;
+\mathcal{F}^{(n)}_{n+1}\ \uplus\ \mathcal{F}^{(n-1)}_{n+1}.
+\]
+\item \textbf{Two plateaus of pre-depth.}
+For every class $[Y]\in\mathcal{F}^{(n)}_{n+1}$ we have
+$\kappa(Y\mid B_n)=H_n^{*}$, and for every
+$[Y]\in\mathcal{F}^{(n-1)}_{n+1}$ we have $\kappa(Y\mid B_n)=H_{n-1}^{*}$.
+\item \textbf{Nondegeneracy.}
+Both $\mathcal{F}^{(n)}_{n+1}$ and $\mathcal{F}^{(n-1)}_{n+1}$ are nonempty.
+\end{enumerate}
+
+\end{axiom}
+\end{mdframed}
+
+\subsection{Remarks and Examples}
+
+\paragraph{Why decouple the budgets?}
+Using $H$ for \emph{candidates} and a fixed $R^*$ for \emph{post-frontier} keeps novelty local and stable.
+For instance, when $R^*=1$ and $K$ collapses ``introduce a type former'' into a single schema class,
+introducing a universe yields $\nu=1$ (one counted class), not an explosion that scales with the number of type names.
+
+\paragraph{Early steps (illustrative).}
+From $\mathrm{Reality}(0)=\emptyset$ with $H(0)=2$, the first admissible winners are typically
+(i) a universe (or a small bundle of universes) and
+(ii) a first basic type (e.g.\ \textsf{Unit}) whose constructor and recursor sit one step away.
+Because the ring is small ($R^*=1$) and type-formers are deduped by $K$, the novelty of these steps is modest and well-behaved; the bar rises accordingly, and deeper structures only actualize after idles increase $H$.
+
+\paragraph{Level discipline.}
+The level cap $\mathrm{Lev}(X)\leq L^*+1$ and the foundation constraint (derivations use only $\{L^*,L^*-1\}$) enforce \emph{adjacent-level growth}: each realization consolidates the current stratum before reaching higher.
+
+\paragraph{Bar policies.}
+Two-tap reacts to the last two realized efficiencies; $\varphi\Omega$ scales the running average by the golden ratio. Both create a moving target; which one you choose is a modeling choice.
+
+\paragraph{Derived regularities.}
+For many finite alphabets and bar policies, the minimal horizons at which successive winners just clear the bar exhibit near-Fibonacci recurrences and golden-ratio growth of the running average. We regard these as empirical laws or theorems about particular profiles, not as axioms.
+
+\vspace{-0.25em}
+\subsection{Summary}
+
+\begin{enumerate}
+\item \textbf{Monotone ticks:} reality grows irreversibly by discrete steps.
+\item \textbf{Effort:} $\kappa$ is shortest derivation length over a fixed finite alphabet.
+\item \textbf{Novelty:} sum of local, post-bounded savings with a fixed ring $R^*$ and schema dedup $K$; pre-costs are truncated at the horizon $H$.
+\item \textbf{Gate--Select--Schedule:} admit by budget and adjacent-level discipline; select above an adaptive bar by minimal overshoot (tie-break by $\kappa$, allow superposition); reset/increase the horizon by a simple success/idle rule.
+\item \textbf{Integration Frontier Additivity} The set of immediate prerequisites for the next realization is anchored at the exact difficulty level of the two previous discoveries.
+\end{enumerate}
+
+These four principles give a clean, parameterized mechanism.
+Choosing $(\mathcal{A}, R^*, K,\text{bar policy})$ fixes a concrete ``genesis profile.''
+The resulting dynamics is deterministic, auditable, and---crucially---keeps early novelty bounded while preserving the long-range, self-organizing behavior we seek to model.
+%=====================================================================
+%                   END OF AXOMS
+%=====================================================================
+
+
+\subsection{The Genesis Sequence}
+
+\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!5, nobreak=true]
+\begin{MainG}\label{thm:genesis-main}
+\emph{(Genesis Sequence)} Under Axioms~1–5, with the fixed canonical codebook $\Code$, the PEN dynamics determine a \emph{unique} actualization history $\{\Reality(\tau)\}_{\tau\in\mathbb{N}}$ such that:
+\begin{enumerate}[label=(\roman*)]
+\item Actualization occurs only at Fibonacci ticks \[\tau\in\{1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597, ..\}.\]
+\item At each such $\tau$, exactly one structure $X_\tau$ is realized, with integer effort $\kappa(\tau)$ and novelty $\nu(\tau)$ as in Table~\ref{tab:genesis}; in particular
+\[
+\frac{\nu(\tau)}{\kappa(\tau)} \;>\; \phi\cdot \Omega(\tau-1),
+\]
+where $\phi=(1+\sqrt{5})/2$ and $\Omega(\tau-1)=\bigl(\sum_{t<\tau}\nu(t)\bigr)\big/\bigl(\sum_{t<\tau}\kappa(t)\bigr)$.
+\item No other candidate definable from $\Reality(\tau-1)$ both (a) exceeds the effective bar $\phi\cdot\Omega(\tau-1)$ and (b) strictly surpasses the realized ratio at that tick.
+\end{enumerate}
+
+\begin{center}
+\captionof{table}{The first 16 Fibonacci actualizations in the Genesis Sequence.}
+\label{tab:genesis}
+\begin{tabular}{|c|l|c|c|r|r|}
+\hline
+$\tau$ & Structure & $\nu$ & $\kappa$ & $\nu/\kappa$ & Bar $= \phi \cdot \Omega(\tau-1)$ \\
+\hline
+1 & Universe $\mathcal{U}_0 : \mathcal{U}_1$ & 1 & 2 & 0.500 & --- \\
+2 & Unit type $\mathbf{1}$ & 1 & 1 & 1.000 & 0.809 \\
+3 & Witness $\star : \mathbf{1}$ & 2 & 1 & 2.000 & 1.079 \\
+5 & $\Pi$/$\Sigma$ types & 5 & 3 & 1.667 & 1.618 \\
+8 & Circle $S^1$ & 7 & 3 & 2.333 & 2.080 \\
+13 & Smooth manifolds & 8 & 3 & 2.667 & 2.589 \\
+21 & Higher sphere $S^2$ & 10 & 3 & 3.333 & 2.987 \\
+34 & $3$-Sphere $S^3 \cong \mathrm{SU}(2)$ & 18 & 5 & 3.600 & 3.438 \\
+55 & Hopf fibration $S^3 \to S^2$ & 17 & 4 & 4.250 & 4.007 \\
+89 & Generic Lie groups & 9 & 2 & 4.500 & 4.468 \\
+144 & Differentiable atlases & 19 & 4 & 4.750 & 4.674 \\
+233 & Principal bundle connections & 26 & 5 & 5.200 & 5.068 \\
+377 & Curvature tensors & 34 & 6 & 5.667 & 5.528 \\
+610 & Metric + orthonormal frame bundle & 43 & 7 & 6.143 & 6.048 \\
+987 & Hilbert functional on Riemannian metrics & 60 & 9 & 6.667 & 6.604 \\
+1597 & First smooth function space; $\mathbb{R}$ & 150 & 8 & 18.750 & 7.253 \\
+\hline
+\end{tabular}
+\end{center}
+\end{MainG}
+\end{mdframed}
+
+\paragraph{Implication: Generative Mathematics.}
+Because DTT specifies a deterministic actualization dynamics over HoTT’s
+space of possibilities, it functions as an algorithm for the automatic
+construction of mathematics. Unlike brute-force enumeration, PEN filters
+candidates by efficiency, producing an ever-expanding body of mathematics
+that is not only internally consistent but also hierarchically coherent and
+fruitful. This suggests that the mathematics generated by DTT is likely to
+be "meaningful and effective" in the sense of yielding structures that
+simplify, unify, and ultimately prove useful in scientific theories. 
+In this light, DTT can be interpreted as a constructive foundation not
+just for existing mathematics, but for mathematics yet to be discovered.
+\end{document}
