@@ -1,2 +1,5 @@
 /.lake
 Playground.lean
+CodexToken
+all.lean
+instructions.md
