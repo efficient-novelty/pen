@@ -144,8 +144,11 @@ def frontierAll (actions : List AtomicDecl)
         match iddfsMin actions (PEN.CAD.goalOfDecl Y) postBudget post with
         | none => acc
         | some (kPost, _) =>
-          let kPreEff := kappaTrunc actions B Y preBudget
-          acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
+          if h : kPost = 0 then
+            acc
+          else
+            let kPreEff := kappaTrunc actions B Y preBudget
+            acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
       []
   -- … then collapse schema-equivalent targets (all type formers → 1 class).
   dedupFrontierByKey raw
@@ -189,17 +192,20 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
         match PEN.CAD.kappaMinForDecl? post Y sc.actions postBudget with
         | none => acc
         | some (kPost, _) =>
-          let kPreEff :=
-            match Y with
-            | AtomicDecl.declareTerm _ T =>
-                if B.hasTypeFormer T then kappaTrunc sc.actions B Y preBudget else preBudget + 1
-            | AtomicDecl.declareEliminator _ T =>
-                if B.hasTypeFormer T then kappaTrunc sc.actions B Y preBudget else preBudget + 1
-            | AtomicDecl.declareCompRule e c =>
-                if B.hasEliminator e && B.hasConstructor c then kappaTrunc sc.actions B Y preBudget else preBudget + 1
-            | _ =>
-                kappaTrunc sc.actions B Y preBudget
-          acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
+          if h : kPost = 0 then
+            acc
+          else
+            let kPreEff :=
+              match Y with
+              | AtomicDecl.declareTerm _ T =>
+                  if B.hasTypeFormer T then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+              | AtomicDecl.declareEliminator _ T =>
+                  if B.hasTypeFormer T then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+              | AtomicDecl.declareCompRule e c =>
+                  if B.hasEliminator e && B.hasConstructor c then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+              | _ =>
+                  kappaTrunc sc.actions B Y preBudget
+            acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
       []
   reduceByKeyMaxGain raw
 
