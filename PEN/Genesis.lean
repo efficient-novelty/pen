@@ -299,7 +299,7 @@ def demo_rows_21 : List String :=
   let (_, rows) := runDiscoverNTicksWithLedger dcfg st0 21
   rows.map fmt
 
--- #eval demo_rows_21   -- uncomment to run the 21-tick demo
+#eval demo_rows_21   -- uncomment to run the 21-tick demo
 -- #eval manMapDecls8.length   -- expect 8
 
 -- #eval
