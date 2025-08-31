@@ -191,6 +191,11 @@ def isFib (n : Nat) : Bool :=
       | _ => acc)
     []
 
+@[inline] def tfOnly? (ts : List AtomicDecl) : Option String :=
+  match ts with
+  | [AtomicDecl.declareTypeFormer T] => some T
+  | _                                => none
+
 open PEN.Select.Discover
 
 @[inline] def isSubsetTargets (xs ys : List AtomicDecl) : Bool :=
@@ -472,6 +477,20 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
     else
       actions'
 
+  let baseKeys := keysOfTargets X.targets
+  let exKeys :=
+    match tfOnly? X.targets with
+    | some T =>
+        let elimDecls := eliminatorsForTypesIn actions' [T]
+        let elimKey   := PEN.Novelty.Scope.FrontierKey.elim T
+        let compKeys  := elimDecls.map (fun
+                          | AtomicDecl.declareEliminator e _ =>
+                              PEN.Novelty.Scope.FrontierKey.compElim e
+                          | _ => PEN.Novelty.Scope.FrontierKey.typeFormer)
+        let termKey   := PEN.Novelty.Scope.FrontierKey.term T
+        PEN.Novelty.Scope.dedupBEq (baseKeys ++ [elimKey, termKey] ++ compKeys)
+    | none => baseKeys
+
   let sc : ScopeConfig :=
     { actions       := actions''
       enumerators   := enums
@@ -479,7 +498,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       preMaxDepth?  := some H
       postMaxDepth? := some rPost
       exclude       := excl
-      excludeKeys   := keysOfTargets X.targets }
+      excludeKeys   := exKeys }
 
   match PEN.Novelty.Novelty.noveltyForPackage? B X.targets sc (maxDepthX := H) with
   | none => none

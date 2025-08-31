@@ -189,7 +189,16 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
         match PEN.CAD.kappaMinForDecl? post Y sc.actions postBudget with
         | none => acc
         | some (kPost, _) =>
-          let kPreEff := kappaTrunc sc.actions B Y preBudget
+          let kPreEff :=
+            match Y with
+            | AtomicDecl.declareTerm _ T =>
+                if B.hasTypeFormer T then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+            | AtomicDecl.declareEliminator _ T =>
+                if B.hasTypeFormer T then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+            | AtomicDecl.declareCompRule e c =>
+                if B.hasEliminator e && B.hasConstructor c then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+            | _ =>
+                kappaTrunc sc.actions B Y preBudget
           acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
       []
   reduceByKeyMaxGain raw

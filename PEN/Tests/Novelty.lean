@@ -32,7 +32,8 @@ def actionsUnit : List AtomicDecl :=
       , preMaxDepth?  := some H
       , postMaxDepth? := some 1
       , exclude       := [declareTypeFormer "Unit"]
-      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets [declareTypeFormer "Unit"] }
+      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets [declareTypeFormer "Unit"]
+                        ++ [PEN.Novelty.Scope.FrontierKey.elim "Unit"] }
     match noveltyForPackage? B [declareTypeFormer "Unit"] sc with
     | none   => "NOVELTY_FAIL"
     | some r => s!"ν(Unit)={r.nu}  (expected 1)"
