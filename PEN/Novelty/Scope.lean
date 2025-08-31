@@ -196,6 +196,11 @@ def unionEnumerators (es : List FrontierEnumerator) : FrontierEnumerator :=
 
 /-! ## Frontier construction -/
 
+@[inline] def kappaTrunc (actions : List AtomicDecl) (Γ : Context) (Y : AtomicDecl) (budget : Nat) : Nat :=
+  match kappaMinForDecl? Γ Y actions budget with
+  | some (k, _) => k
+  | none        => budget + 1
+
 /-- Gather, exclude, and deduplicate raw targets from the post context. -/
 def gatherTargets (post : Context) (cfg : ScopeConfig) : List Target :=
   let all := (unionEnumerators cfg.enumerators) post
@@ -211,33 +216,10 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
   let preBound := preMaxDepth cfg
   let ts := gatherTargets post cfg
 
-  -- helper: bounded pre-cost, defaulting to H+1 on failure
-  let preCost (t : Target) : Nat :=
-    match kappaMinForDecl? pre t cfg.actions preBound with
-    | some (kPre, _) => kPre
-    | none           => H + 1
-
   let goTarget (t : Target) : Option FrontierEntry :=
     match kappaMinForDecl? post t cfg.actions H with
     | some (kPost, _certPost) =>
-        -- >>> NEW: prerequisite-gated pre-costs <<<
-        let kPreEff :=
-          match t with
-          -- terms require their host type to already exist pre-side
-          | AtomicDecl.declareTerm _ T =>
-              if pre.hasTypeFormer T then preCost t else H + 1
-
-          -- eliminators require their host type to already exist pre-side
-          | AtomicDecl.declareEliminator _ T =>
-              if pre.hasTypeFormer T then preCost t else H + 1
-
-          -- comp rules require BOTH the eliminator and the constructor to already exist pre-side
-          | AtomicDecl.declareCompRule e c =>
-              if pre.hasEliminator e && pre.hasConstructor c then preCost t else H + 1
-
-          -- everything else: compute normally
-          | _ => preCost t
-
+        let kPreEff := kappaTrunc cfg.actions pre t preBound
         some { target := t, kPost := kPost, kPreEff := kPreEff }
     | none => none
 
