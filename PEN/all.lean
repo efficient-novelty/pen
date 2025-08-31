@@ -1369,10 +1369,18 @@ def manMapDecls8 : List AtomicDecl :=
       (List.range missing).map (fun i => declareTerm s!"Man.map_extra{xs.length + i}" "Man")
     xs ++ extras
 
+def actionsClassifierMan : List AtomicDecl :=
+  PEN.Grammar.Classifier.actionsForClassifier (specManifold "Man") none
+
 def s1Spec : HITSpec := specS1 "S1"   -- withEliminator := true by default
 
 def actionsS1 : List AtomicDecl :=
   actionsForHIT s1Spec (some 0)       -- [U0, S1, base0, loop0, rec_S1, comp rules]
+
+def s2Spec : HITSpec := specS2 "S2"
+
+def actionsS2 : List AtomicDecl :=
+  actionsForHIT s2Spec (some 0)
 
 /-- Global finite action alphabet used by discovery. -/
 def globalActions : List AtomicDecl :=
@@ -1404,8 +1412,11 @@ def globalActions : List AtomicDecl :=
 
   ]
   ++ actionsS1
+  ++ actionsS2                                    -- include S² TF+ctors+rec (comp-rules remain frontier)
+  ++ actionsClassifierMan
   ++ aliasTermDeclsPiSigma
   ++ manMapDecls8
+  ++ classifierMapTermDecls "S2"
 
 
 def dcfg : DiscoverConfig :=
@@ -2185,7 +2196,16 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
         match iddfsMin sc.actions (PEN.CAD.goalOfDecl Y) postBudget post with
         | none => acc
         | some (kPost, _) =>
-          let kPreEff := kappaTrunc sc.actions B Y preBudget
+          let kPreEff :=
+            match Y with
+            | AtomicDecl.declareTerm _ T =>
+                if B.hasTypeFormer T then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+            | AtomicDecl.declareEliminator _ T =>
+                if B.hasTypeFormer T then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+            | AtomicDecl.declareCompRule e c =>
+                if B.hasEliminator e && B.hasConstructor c then kappaTrunc sc.actions B Y preBudget else preBudget + 1
+            | _ =>
+                kappaTrunc sc.actions B Y preBudget
           acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
       []
   -- keep one representative per schema class with maximal gain
@@ -2266,19 +2286,33 @@ inductive FrontierKey where
   | universe (lvl : Nat)
   | typeFormer                                 -- collapse all TFs into one class
   | ctor     (typeName : String)               -- all ctors for same host
-  | compCtor (ctorName : String)               -- all comp rules for same host
+  | elim     (typeName : String)               -- eliminators by host
+  | compElim (elimName : String)               -- comp rules keyed by eliminator
   | term     (typeName : String)               -- all general terms by host
   | exact    (t : Target)                      -- fallback (rare)
 deriving BEq, Repr, Inhabited
 
+@[inline] def isClassifierTFName (s : String) : Bool :=
+  s == "Pi" || s == "Sigma" || s == "Man"
+
+@[inline] def isSchemaNameFor (nm T : String) : Bool :=
+  nm == s!"schema_{T}"
+
+@[inline] def isPiSigmaAlias (nm T : String) : Bool :=
+  (T == "Pi"    && (nm == "alias_arrow" || nm == "alias_forall" || nm == "alias_eval")) ||
+  (T == "Sigma" && (nm == "alias_prod"   || nm == "alias_exists"))
+
 @[inline] def keyOfTarget (t : Target) : FrontierKey :=
   match t with
-  | AtomicDecl.declareUniverse â„“      => FrontierKey.universe â„“
+  | AtomicDecl.declareUniverse ℓ      => FrontierKey.universe ℓ
   | AtomicDecl.declareTypeFormer _    => FrontierKey.typeFormer
   | AtomicDecl.declareConstructor _ T => FrontierKey.ctor T
-  | AtomicDecl.declareEliminator  _ _ => FrontierKey.typeFormer
-  | AtomicDecl.declareCompRule _ c    => FrontierKey.compCtor c
-  | AtomicDecl.declareTerm name _     => FrontierKey.exact t     -- or a termExact key
+  | AtomicDecl.declareEliminator _ T  => FrontierKey.elim T
+  | AtomicDecl.declareCompRule e _    => FrontierKey.compElim e
+  | AtomicDecl.declareTerm nm T       =>
+      if isClassifierTFName T && (isSchemaNameFor nm T || isPiSigmaAlias nm T)
+      then FrontierKey.typeFormer
+      else FrontierKey.term T
 
 @[inline] def keysOfTargets (ts : List Target) : List FrontierKey :=
   let rec add (acc : List FrontierKey) (k : FrontierKey) : List FrontierKey :=
@@ -3219,6 +3253,11 @@ def isFib (n : Nat) : Bool :=
       | _ => acc)
     []
 
+@[inline] def tfOnly? (ts : List AtomicDecl) : Option String :=
+  match ts with
+  | [AtomicDecl.declareTypeFormer T] => some T
+  | _                                => none
+
 open PEN.Select.Discover
 
 @[inline] def isSubsetTargets (xs ys : List AtomicDecl) : Bool :=
@@ -3496,6 +3535,20 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
           ([], cfg.actions, [])
 
 
+  let baseKeys := keysOfTargets X.targets
+  let exKeys :=
+    match tfOnly? X.targets with
+    | some T =>
+        let elimDecls := eliminatorsForTypesIn actions' [T]
+        let elimKey   := PEN.Novelty.Scope.FrontierKey.elim T
+        let compKeys  := elimDecls.map (fun
+                          | AtomicDecl.declareEliminator e _ =>
+                              PEN.Novelty.Scope.FrontierKey.compElim e
+                          | _ => PEN.Novelty.Scope.FrontierKey.typeFormer)
+        let termKey   := PEN.Novelty.Scope.FrontierKey.term T
+        PEN.Novelty.Scope.dedupBEq (baseKeys ++ [elimKey, termKey] ++ compKeys)
+    | none => baseKeys
+
   let sc : ScopeConfig :=
     { actions       := actions'
       enumerators   := enums
@@ -3503,7 +3556,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       preMaxDepth?  := some H
       postMaxDepth? := some rPost
       exclude       := excl
-      excludeKeys   := keysOfTargets X.targets }
+      excludeKeys   := exKeys }
 
   match PEN.Novelty.Novelty.noveltyForPackage? B X.targets sc (maxDepthX := H) with
   | none => none

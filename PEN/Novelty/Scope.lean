@@ -47,7 +47,8 @@ inductive FrontierKey where
   | universe (lvl : Nat)
   | typeFormer                                 -- collapse all TFs into one class
   | ctor     (typeName : String)               -- all ctors for same host
-  | compCtor (ctorName : String)               -- all comp rules for same host
+  | elim     (typeName : String)               -- eliminators by host
+  | compElim (elimName : String)               -- comp rules keyed by eliminator
   | term     (typeName : String)               -- all general terms by host
   | exact    (t : Target)                      -- fallback (rare)
 deriving BEq, Repr, Inhabited
@@ -85,9 +86,9 @@ Axiom 3 schema keying:
   • universes → per-level key
   • all type formers → one class (FrontierKey.typeFormer)
   • constructors → key by host (FrontierKey.ctor host)
-  • eliminators → **always** key to typeFormer (endogenous to their host)
-  • comp rules  → key by constructor (FrontierKey.compCtor ctor)
-  • general terms → exact
+  • eliminators → key by host (FrontierKey.elim host)
+  • comp rules  → key by eliminator (FrontierKey.compElim elim)
+  • general terms → keyed by host (FrontierKey.term host)
   • Pi/Σ alias / classifier schema_* → typeFormer
 -/
 
@@ -96,15 +97,15 @@ Axiom 3 schema keying:
   | AtomicDecl.declareUniverse ℓ      => FrontierKey.universe ℓ
   | AtomicDecl.declareTypeFormer _    => FrontierKey.typeFormer
   | AtomicDecl.declareConstructor _ T => FrontierKey.ctor T
-  | AtomicDecl.declareEliminator _ _ => FrontierKey.typeFormer
-  | AtomicDecl.declareCompRule _ c    => FrontierKey.compCtor c
+  | AtomicDecl.declareEliminator _ T  => FrontierKey.elim T
+  | AtomicDecl.declareCompRule e _    => FrontierKey.compElim e
   -- Bundled closure/schema stays endogenous; Π/Σ aliases are *not* endogenous
   -- (so the Π–Σ pair can get novelty from them).
   | AtomicDecl.declareTerm nm T =>
-      if isClassifierTFName T && isSchemaNameFor nm T then
+      if isClassifierTFName T && (isSchemaNameFor nm T || isPiSigmaAlias nm T) then
         FrontierKey.typeFormer
       else
-        FrontierKey.exact t
+        FrontierKey.term T
 
 @[inline] def keysOfTargets (ts : List Target) : List FrontierKey :=
   let rec add (acc : List FrontierKey) (k : FrontierKey) : List FrontierKey :=

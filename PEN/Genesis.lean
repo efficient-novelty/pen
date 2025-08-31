@@ -118,19 +118,10 @@ def s1Spec : HITSpec := specS1 "S1"   -- withEliminator := true by default
 def actionsS1 : List AtomicDecl :=
   actionsForHIT s1Spec (some 0)       -- [U0, S1, base0, loop0, rec_S1, comp rules]
 
-/-- S²: point + 2-cell ("surf0"), with recursor and two β-rules. -/
-def actionsS2 : List AtomicDecl :=
-  [ declareTypeFormer "S2"
-  , declareConstructor "base0" "S2"
-  , declareConstructor "surf0" "S2"
-  , declareEliminator "rec_S2" "S2"
-  , declareCompRule "rec_S2" "base0"
-  , declareCompRule "rec_S2" "surf0"
-  ]
+def s2Spec : HITSpec := specS2 "S2"
 
-/-- One extra S²-local radius-1 term so ν(S²) = 8. -/
-def s2BumpTerms : List AtomicDecl :=
-  [ declareTerm "S2.cap" "S2" ]
+def actionsS2 : List AtomicDecl :=
+  actionsForHIT s2Spec (some 0)
 
 /-- Global finite action alphabet used by discovery. -/
 def globalActions : List AtomicDecl :=
@@ -162,10 +153,11 @@ def globalActions : List AtomicDecl :=
 
   ]
   ++ actionsS1                 -- full S¹ package
-  ++ actionsS2                 -- S² package
-  ++ s2BumpTerms               -- push ν(S²) from 7 to 8
-  ++ actionsClassifierMan      -- << Man TF + closure(schema_Man) + eliminator(C∞_Man)
-  --  ++ manMapDecls8          -- REMOVE: don't expose Man maps globally
+  ++ actionsS2                                    -- include S² TF+ctors+rec (comp-rules remain frontier)
+  ++ actionsClassifierMan
+  ++ aliasTermDeclsPiSigma
+  ++ manMapDecls8
+  ++ classifierMapTermDecls "S2"
 
 
 def dcfg : DiscoverConfig :=
