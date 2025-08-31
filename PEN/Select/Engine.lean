@@ -282,8 +282,9 @@ deriving Repr
 /-- Post frontier radius (Axiom 3) -/
 @[inline] def postRadius (H : Nat) (hist : History) : Nat :=
   match hist.length with
-  | 0 => 1                 -- before we’ve realized anything: ultra-local
-  | _ => Nat.min 2 H       -- thereafter, radius-2 (capped by H)
+  | 0 => 1  -- τ = 1
+  | 1 => 1  -- τ = 2
+  | _ => Nat.min 2 H
 
 
 /-- Build the ScopeConfig for a package at the current horizon. -/

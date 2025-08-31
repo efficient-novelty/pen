@@ -155,9 +155,6 @@ def globalActions : List AtomicDecl :=
   ++ actionsS1                 -- full S¹ package
   ++ actionsS2                                    -- include S² TF+ctors+rec (comp-rules remain frontier)
   ++ actionsClassifierMan
-  ++ aliasTermDeclsPiSigma
-  ++ manMapDecls8
-  ++ classifierMapTermDecls "S2"
 
 
 def dcfg : DiscoverConfig :=
