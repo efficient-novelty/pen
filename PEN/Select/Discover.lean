@@ -212,18 +212,8 @@ def discoverTFPairBundles (B : Context) (H : Nat) (actions : List AtomicDecl) : 
     (fun acc (s₁, s₂) =>
       let ts0 := dedupBEq (s₁.delta ++ s₂.delta)
       let ts : List AtomicDecl :=
-        let tfs : List String :=
-          ts0.foldl (fun acc a => match a with
-            | .declareTypeFormer n => acc ++ [n]
-            | _ => acc) []
-        if ts0.all isTypeFormer ∧ tfs.length = 2 ∧ tfs.all isClassifier then
-          let T₁ := (tfs.foldl (fun m n => if m = "" ∨ n < m then n else m) "")
-          match pickElimFor actions T₁ with
-          | some e => dedupBEq (ts0 ++ [e])
-          | none   => ts0
-        else
-          ts0
-        match PEN.CAD.kappaMin? B (goalAllTargets ts) actions H with
+        ts0   -- keep the pair pure: exactly the two TFs
+      match PEN.CAD.kappaMin? B (goalAllTargets ts) actions H with
       | some (_k, cert) =>
           let X := deltaTargets B cert.deriv
           if X.isEmpty then acc else
