@@ -251,6 +251,35 @@ open PEN.Select.Discover  -- for `hostOf`
     | some h => B.hasTypeFormer h
     | none   => false)
 
+@[inline] def looksLikeHITHost (acts : List AtomicDecl) (h : String) : Bool :=
+  let ctorCount :=
+    acts.foldl (fun n a =>
+      n + match a with
+          | .declareConstructor _ T => if T == h then 1 else 0
+          | _ => 0) 0
+  let hasElim :=
+    acts.any (fun a => match a with
+                       | .declareEliminator _ T => T == h
+                       | _ => false)
+  (decide (2 ≤ ctorCount)) && hasElim
+
+
+@[inline] def foundationOKForTargets
+  (levelEnv : LevelEnv) (Lstar : Nat) (steps targets : List AtomicDecl) : Bool :=
+  steps.all (fun a =>
+    if targets.any (· == a) then
+      -- final “installation” steps may live at the next level
+      levelOfDecl levelEnv a ≤ Lstar + 1
+    else
+      -- prerequisites must live on the current or the previous stratum
+      let ℓ := levelOfDecl levelEnv a
+      (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1))
+
+@[inline] def elimOnly? (ts : List AtomicDecl) : Option String :=
+  match ts with
+  | [AtomicDecl.declareEliminator e _] => some e
+  | _                                  => none
+
 /-- Union of two CAD contexts (monotone merge, with simple dedup). -/
 def ctxUnion (A B : Context) : Context :=
   let dedupNat (xs : List Nat) : List Nat :=
@@ -322,12 +351,37 @@ deriving Repr
                    | .declareTypeFormer n => allow.any (· == n)
                    | _ => false)
 
+@[inline] def allowFound (ℓ Lstar : Nat) : Bool :=
+  (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1)
 
+@[inline] def isExactlyPiSigma (ts : List AtomicDecl) : Bool :=
+  isPureClassifierTFSet ts
+  && containsTF "Pi" ts && containsTF "Sigma" ts
+  && tfCountTargets ts = 2
 
-/-- Phase discipline at Fibonacci ticks:
-    (disabled: we now let bar/horizon decide) -/
-def phaseAllow (_τ : Nat) (_ts : List AtomicDecl) : Bool :=
-  true
+@[inline] def isManSolo (ts : List AtomicDecl) : Bool :=
+  isClassifierTFSolo ts && containsTF "Man" ts
+
+/-- Fibonacci curriculum:
+    τ≥5  : allow {Pi,Sigma}
+    τ≥8  : allow full S¹ (TF + ≥2 ctors + elim)
+    τ≥13 : allow Man (TF‑only classifier)
+    τ≥21 : allow full S²
+    Everything else: unrestricted (subject to other gates). -/
+def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
+  match commonHost? ts with
+  | some h =>
+      if h == "S1" then
+        (isFullForHost ts h) && τ ≥ 8
+      else if h == "S2" then
+        (isFullForHost ts h) && τ ≥ 21
+      else
+        true
+  | none =>
+      if isExactlyPiSigma ts then τ ≥ 5
+      else if isManSolo ts then τ ≥ 13
+      else true
+
 
 
 
@@ -388,20 +442,10 @@ structure XOutcome where
   usedLvls  : List Nat    -- foundation audit: distinct levels in the minimal derivation
 deriving Repr
 
-/- Prefer attached work; else prefer fewest TFs. -/
+/- Prefer attached work; otherwise leave the set unchanged. -/
 def preferAccepted (B : Context) (accepted : List XOutcome) : List XOutcome :=
   let attached := accepted.filter (fun e => attachesToB B e.x.targets)
-  let base     := if attached.isEmpty then accepted else attached
-  match base with
-  | [] => []
-  | b :: bs =>
-      let minTF :=
-        (b :: bs).foldl
-          (fun m e =>
-            let n := tfCountTargets e.x.targets
-            if n < m then n else m)
-          (tfCountTargets b.x.targets)
-      (b :: bs).filter (fun e => tfCountTargets e.x.targets = minTF)
+  if attached.isEmpty then accepted else attached
 
 
 /-- After we know who **clears the bar**, drop partial S1 bundles
@@ -480,17 +524,26 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
 
   let baseKeys := keysOfTargets X.targets
   let exKeys :=
-    match tfOnly? X.targets with
-    | some T =>
+    match tfOnly? X.targets, elimOnly? X.targets with
+    | some T, _ =>
         let elimDecls := eliminatorsForTypesIn actions' [T]
         let elimKey   := PEN.Novelty.Scope.FrontierKey.elim T
-        let compKeys  := elimDecls.map (fun
-                          | AtomicDecl.declareEliminator e _ =>
-                              PEN.Novelty.Scope.FrontierKey.compElim e
-                          | _ => PEN.Novelty.Scope.FrontierKey.typeFormer)
+        -- NEW: exclude each comp rule by its exact key
+        let compDecls := compRulesForElimsIn actions' elimDecls
+        let compKeys  := compDecls.map (fun d => PEN.Novelty.Scope.keyOfTarget d)
+        -- keep the coarse term key (it won't block exact keys, but harmless)
         let termKey   := PEN.Novelty.Scope.FrontierKey.term T
         PEN.Novelty.Scope.dedupBEq (baseKeys ++ [elimKey, termKey] ++ compKeys)
-    | none => baseKeys
+    | none, some e =>
+        -- Eliminator-only X: exclude all its comp rules by exact keys
+        let compDecls := actions'.filter (fun a =>
+          match a with
+          | AtomicDecl.declareCompRule e' _ => e' == e
+          | _ => false)
+        let compKeys  := compDecls.map (fun d => PEN.Novelty.Scope.keyOfTarget d)
+        PEN.Novelty.Scope.dedupBEq (baseKeys ++ compKeys)
+    | none, none =>
+        baseKeys
 
   let sc : ScopeConfig :=
     { actions       := actions''
@@ -527,39 +580,35 @@ deriving Repr
 
 /-- Selection for discovered X’s:
     - accept only those with ρ > bar
-    - prefer attached work; else pure classifier pairs; else fewest TFs
-    - among the preferred set, pick **minimal overshoot**, tie-break by minimal κ
-    - choose a **single** deterministic winner (no superposition). -/
+    - prefer **attached** work (if any); else keep all accepted
+    - among that pool, pick **minimal overshoot**; tie-break by minimal κ
+    - choose a single deterministic winner. -/
 def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDecision :=
   match cands with
   | [] => XTickDecision.idle 0.0 none
   | c1 :: cs =>
-    let barVal := c1.bar
-    let all    := c1 :: cs
-    -- who clears the bar?
+    let barVal  := c1.bar
+    let all     := c1 :: cs
     let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
-    -- drop partial S1 bundles if a full host exists among accepted
     let accept1 := pruneAfterAccept accept0
-    -- new: priority filter (attached → classifier pairs → fewest TFs)
-    let pool    := preferAccepted B accept1
+    -- *** NEW: apply attached preference BEFORE minimal overshoot ***
+    let pool0   := preferAccepted B accept1
+    let pool    := if pool0.isEmpty then accept1 else pool0
     match pool with
     | [] => XTickDecision.idle barVal none
     | a1 :: as =>
-      -- *** minimal overshoot (closest above the bar) ***
+      -- minimal overshoot within the preferred pool
       let mind  := (a1 :: as).foldl (fun m e => if e.overshoot < m then e.overshoot else m) a1.overshoot
-      let minds := (a1 :: as).filter (fun e => approxEq e.overshoot mind eps)
-      match minds with
+      let tight := (a1 :: as).filter (fun e => approxEq e.overshoot mind eps)
+      -- tie-break by minimal κ; pick a single deterministic winner
+      match tight with
       | w1 :: ws =>
-        -- tie-break by minimal κ; if still tied → superposition
         let κmin := (w1 :: ws).foldl (fun m e => if e.report.kX < m then e.report.kX else m) w1.report.kX
         let winners := (w1 :: ws).filter (fun e => e.report.kX = κmin)
-        -- *** choose a single deterministic winner (head) ***
         match winners with
         | w :: _ => XTickDecision.realized [w]
         | []     => XTickDecision.idle barVal none
       | [] => XTickDecision.idle barVal none
-
-
 
 /-- Apply realization of discovered X’s (superposition allowed). -/
 def applyRealizationX (st : EngineState) (winners : List XOutcome) : EngineState :=
@@ -591,13 +640,20 @@ def tickDiscover (cfg : DiscoverConfig) (st : EngineState) : XTickResult :=
     let XsPhase  : List DiscoveredX := XsPhase₀   -- no τ-specific filtering
 
 
-    -- Axiom 5 admissibility: level cap + foundation constraint (as you already had)
+    -- Axiom 5 admissibility: level cap + foundation constraint
     let Lstar := contextLevel levelEnv st.B
-    let admissible : List DiscoveredX :=
-      XsPhase.filter (fun X =>
-        let Lx := targetLevel levelEnv X.targets
-        let foundationOK := X.steps.all (fun a => levelOfDecl levelEnv a ≤ Lstar + 1)
-        (Lx ≤ Lstar + 1) && foundationOK)
+let admissible : List DiscoveredX :=
+  XsPhase.filter (fun X =>
+    let Lx := targetLevel levelEnv X.targets
+    let foundationOK := foundationOKForTargets levelEnv Lstar X.steps X.targets
+    let goodBundle :=
+      match commonHost? X.targets with
+      | some h =>
+          if looksLikeHITHost cfg.actions h then
+            (not (allTFOnly X.targets)) && isFullForHost X.targets h
+          else true
+      | none => true
+    (Lx ≤ Lstar + 1) && foundationOK && goodBundle && phaseAllow st.τ X.targets)
     -- score
     let evals : List XOutcome :=
       admissible.foldl
@@ -655,7 +711,11 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
         match PEN.CAD.kappaMin? B (goalAllTargets pkg.targets) pkg.actions H with
         | none => none
         | some (_kXcert, certX) =>
-            if !(certX.deriv.all (fun a => levelOfDecl levelEnv a ≤ Lstar + 1)) then none else
+          let foundationOK :=
+            certX.deriv.all (fun a =>
+              let ℓ := levelOfDecl levelEnv a
+              (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1))
+          if !foundationOK then none else
             -- NEW: extend exclude for fresh types in pkg.targets
             --let freshTFs  := namesOfNewTypeFormers pkg.targets
             --let dropElims := eliminatorsForTypesIn pkg.actions freshTFs

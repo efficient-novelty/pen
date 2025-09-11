@@ -98,18 +98,17 @@ Axiom 3 schema keying:
   | AtomicDecl.declareTypeFormer _    => FrontierKey.typeFormer
   | AtomicDecl.declareConstructor _ T => FrontierKey.ctor T
   | AtomicDecl.declareEliminator _ T  => FrontierKey.elim T
-  | AtomicDecl.declareCompRule e _    => FrontierKey.compElim e
-  | AtomicDecl.declareTerm nm T =>
-      -- Endogenous *only* for bundled closures/schema_T:
-      if isClassifierTFName T && isSchemaNameFor nm T then
-        FrontierKey.typeFormer
-      else if isPiSigmaAlias nm T then
-        -- Π/Σ aliases are external syntax affordances: count each one
-        FrontierKey.exact t
-      else
-        -- General terms (e.g. Man maps) also count individually
-        FrontierKey.exact t
+  | AtomicDecl.declareCompRule e c =>
+      -- count each comp rule separately
+      FrontierKey.exact t
 
+  | AtomicDecl.declareTerm nm T =>
+      if isClassifierTFName T && isSchemaNameFor nm T then
+        FrontierKey.typeFormer          -- bundled closure is endogenous
+      else if isPiSigmaAlias nm T then
+        FrontierKey.exact t             -- count each alias separately
+      else
+        FrontierKey.exact t             -- count each general term (e.g. 8 Man maps)
 
 @[inline] def keysOfTargets (ts : List Target) : List FrontierKey :=
   let rec add (acc : List FrontierKey) (k : FrontierKey) : List FrontierKey :=

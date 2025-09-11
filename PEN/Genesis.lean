@@ -123,38 +123,33 @@ def s2Spec : HITSpec := specS2 "S2"
 def actionsS2 : List AtomicDecl :=
   actionsForHIT s2Spec (some 0)
 
+def s2AffordanceTermDecls : List AtomicDecl :=
+  [ declareTerm "S2.hopf"      "S2"
+  , declareTerm "S2.susp"      "S2"
+  , declareTerm "S2.collapse"  "S2"
+  ]
+
+
 /-- Global finite action alphabet used by discovery. -/
 def globalActions : List AtomicDecl :=
   [ declareUniverse 0
   , declareUniverse 1
-
   -- Unit
   , declareTypeFormer "Unit"
   , declareConstructor "star" "Unit"
   , declareEliminator "rec_Unit" "Unit"
   , declareCompRule "rec_Unit" "star"
-
   -- Π / Σ
   , declareTypeFormer "Pi"
   , declareEliminator "rec_Pi" "Pi"
   , declareTypeFormer "Sigma"
   , declareEliminator "rec_Sigma" "Sigma"
-
+  -- Man (classifier TF only; closure+elim in actionsClassifierMan)
   , declareTypeFormer "Man"
-
-  /- S¹  (needed so discovery can build S¹ seeds and full bundles at τ=8)
-  , declareTypeFormer "S1"
-  , declareConstructor "base0" "S1"
-  , declareConstructor "loop0" "S1"
-  , declareEliminator "rec_S1" "S1"
-  , declareCompRule "rec_S1" "base0"
-  , declareCompRule "rec_S1" "loop0"
-  -/
-
   ]
-  ++ actionsS1                 -- full S¹ package
-  ++ actionsS2                                    -- include S² TF+ctors+rec (comp-rules remain frontier)
-  ++ classifierMapTermDecls "S2"                  -- give S² some radius-1 payoffs once S² exists
+  ++ actionsS1
+  ++ actionsS2
+  ++ s2AffordanceTermDecls
   ++ actionsClassifierMan
 
 
