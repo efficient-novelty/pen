@@ -43,6 +43,8 @@ deriving Repr
     Schema key (Axiom 3: K)
 ############################# -/
 
+/-- Frontier items are keyed coarsely (by host) except Π/Σ aliases,
+    which must be counted distinctly (exact-by-name). -/
 inductive FrontierKey where
   | universe (lvl : Nat)
   | typeFormer                                 -- collapse all TFs into one class
@@ -50,6 +52,7 @@ inductive FrontierKey where
   | elim     (typeName : String)               -- eliminators by host
   | compElim (elimName : String)               -- comp rules keyed by eliminator
   | term     (typeName : String)               -- all general terms by host
+  | termExact (typeName : String) (termName : String)  -- exact key for Π/Σ aliases
   | exact    (t : Target)                      -- fallback (rare)
 deriving BEq, Repr, Inhabited
 
@@ -76,9 +79,15 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
 @[inline] def isSchemaNameFor (nm T : String) : Bool :=
   nm == s!"schema_{T}"
 
-@[inline] def isPiSigmaAlias (nm T : String) : Bool :=
-  (T == "Pi"    && (nm == "alias_arrow" || nm == "alias_forall" || nm == "alias_eval")) ||
-  (T == "Sigma" && (nm == "alias_prod"   || nm == "alias_exists"))
+@[inline] def isPiAliasName (nm : String) : Bool :=
+  nm == "alias_arrow" || nm == "alias_forall" || nm == "alias_eval"
+
+@[inline] def isSigmaAliasName (nm : String) : Bool :=
+  nm == "alias_prod"  || nm == "alias_exists"
+
+@[inline] def isPiSigmaAlias (nm : String) (T : String) : Bool :=
+  (T == "Pi"    && isPiAliasName nm) ||
+  (T == "Sigma" && isSigmaAliasName nm)
 
 /-!
 Axiom 3 schema keying:
@@ -89,7 +98,8 @@ Axiom 3 schema keying:
   • eliminators → key by host (FrontierKey.elim host)
   • comp rules  → key by eliminator (FrontierKey.compElim elim)
   • general terms → keyed by host (FrontierKey.term host)
-  • Pi/Σ alias / classifier schema_* → typeFormer
+  • Π/Σ aliases → exact term key (FrontierKey.termExact host name)
+  • classifier schema_* → typeFormer
 -/
 
 @[inline] def keyOfTarget (t : Target) : FrontierKey :=
@@ -106,9 +116,9 @@ Axiom 3 schema keying:
       if isClassifierTFName T && isSchemaNameFor nm T then
         FrontierKey.typeFormer          -- bundled closure is endogenous
       else if isPiSigmaAlias nm T then
-        FrontierKey.exact t             -- count each alias separately
+        FrontierKey.termExact T nm      -- keep Π/Σ aliases distinct
       else
-        FrontierKey.exact t             -- count each general term (e.g. 8 Man maps)
+        FrontierKey.term T              -- coarse term key by host
 
 @[inline] def keysOfTargets (ts : List Target) : List FrontierKey :=
   let rec add (acc : List FrontierKey) (k : FrontierKey) : List FrontierKey :=
