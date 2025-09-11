@@ -217,11 +217,14 @@ open PEN.Select.Discover  -- for `hostOf`
   | _                       => false
 
 @[inline] def commonHost? (ts : List AtomicDecl) : Option String :=
-  ts.foldl (fun acc a =>
-    match acc, hostOf a with
-    | some h, some h' => if h == h' then some h else acc
-    | none,    some h => some h
-    | acc,     _      => acc) none
+  let hosts :=
+    ts.foldl (fun acc a =>
+      match PEN.Select.Discover.hostOf a with
+      | some h => if acc.any (· == h) then acc else acc ++ [h]
+      | none   => acc) []
+  match hosts with
+  | [h] => some h
+  | _   => none
 
 @[inline] def isFullForHost (ts : List AtomicDecl) (h : String) : Bool :=
   let hasE := ts.any (isElimFor h)
