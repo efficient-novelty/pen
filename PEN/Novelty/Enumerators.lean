@@ -161,14 +161,13 @@ private def holdsDecl (Γ : Context) : AtomicDecl → Bool
 
 /--
 If Γ already has both Π and Σ, enumerate the five exact alias terms
-(Π: arrow/forall/eval; Σ: prod/exists) that are present in `sc.actions` but
-not yet installed in Γ. Returning exact atoms yields ν = 5 for the Π/Σ pair.
+(Π: arrow/forall/eval; Σ: prod/exists) that are not yet installed in Γ.
+Returning exact atoms yields ν = 5 for the Π/Σ pair.
 -/
 def enumPiSigmaAliases : FrontierEnumerator :=
-  fun (sc : ScopeConfig) (Γ : Context) =>
+  fun Γ =>
     if Γ.hasTypeFormer "Pi" && Γ.hasTypeFormer "Sigma" then
-      let ys     := sc.actions.filter isPiSigmaAliasDecl
-      let notYet := ys.filter (fun a => not (holdsDecl Γ a))
+      let notYet := aliasTermDeclsPiSigma.filter (fun a => not (holdsDecl Γ a))
       dedupBEq notYet
     else
       []
