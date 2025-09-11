@@ -141,18 +141,9 @@ private def holdsDecl (Γ : Context) : AtomicDecl → Bool
   | .declareCompRule e c    => Γ.hasCompRule e c
   | .declareTerm t _        => Γ.hasTerm t
 
-/-- The five Π/Σ alias names we want to expose as **exact** terms. -/
-@[inline] private def isPiAliasName (nm : String) : Bool :=
-  nm == "alias_arrow" || nm == "alias_forall" || nm == "alias_eval"
-
-@[inline] private def isSigmaAliasName (nm : String) : Bool :=
-  nm == "alias_prod"  || nm == "alias_exists"
-
-/-- Recognize exactly the five alias declarations in the action alphabet. -/
+/-- Recognize exactly the five Π/Σ alias declarations in the action alphabet. -/
 @[inline] private def isPiSigmaAliasDecl : AtomicDecl → Bool
-  | .declareTerm nm T =>
-      (T == "Pi"    && isPiAliasName nm) ||
-      (T == "Sigma" && isSigmaAliasName nm)
+  | .declareTerm nm T => isPiSigmaAlias nm T
   | _ => false
 
 /-- Simple BEq-based dedup. -/
