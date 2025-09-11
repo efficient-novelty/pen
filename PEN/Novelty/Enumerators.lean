@@ -133,31 +133,48 @@ def classifierMapTermDecls (typeName : String) : List AtomicDecl :=
 def actionsWithClassifierMapTerms (base : List AtomicDecl) (typeName : String) : List AtomicDecl :=
   base ++ classifierMapTermDecls typeName
 
+private def holdsDecl (Γ : Context) : AtomicDecl → Bool
+  | .declareUniverse ℓ      => Γ.hasUniverse ℓ
+  | .declareTypeFormer n    => Γ.hasTypeFormer n
+  | .declareConstructor c _ => Γ.hasConstructor c
+  | .declareEliminator e _  => Γ.hasEliminator e
+  | .declareCompRule e c    => Γ.hasCompRule e c
+  | .declareTerm t _        => Γ.hasTerm t
 
-/-! # Tiny sanity checks (uncomment locally)
+/-- The five Π/Σ alias names we want to expose as **exact** terms. -/
+@[inline] private def isPiAliasName (nm : String) : Bool :=
+  nm == "alias_arrow" || nm == "alias_forall" || nm == "alias_eval"
 
-open PEN.Novelty.Scope
-open AtomicDecl
+@[inline] private def isSigmaAliasName (nm : String) : Bool :=
+  nm == "alias_prod"  || nm == "alias_exists"
 
-def Γ0 : Context := Context.empty
-def Γu : Context := (PEN.CAD.step Γ0 (.declareUniverse 0)).getD Γ0
+/-- Recognize exactly the five alias declarations in the action alphabet. -/
+@[inline] private def isPiSigmaAliasDecl : AtomicDecl → Bool
+  | .declareTerm nm T =>
+      (T == "Pi"    && isPiAliasName nm) ||
+      (T == "Sigma" && isSigmaAliasName nm)
+  | _ => false
 
--- Suppose we have a classifier "Man" already (as a type former).
-def Γman : Context := (PEN.CAD.step Γu (.declareTypeFormer "Man")).getD Γu
+/-- Simple BEq-based dedup. -/
+@[inline] private def dedupBEq [BEq α] (xs : List α) : List α :=
+  xs.foldl (fun acc x => if acc.any (· == x) then acc else acc ++ [x]) []
 
--- Enumerate classifier maps for "Man":
-#eval (enumClassifierMapsFor "Man" Γman).map (fun t => match t with
-      | declareTerm nm ty => (nm, ty)
-      | _ => ("other",""))  -- expect only declareTerm entries
-
--- Augment an actions list:
-def baseActions : List AtomicDecl := [declareUniverse 0, declareTypeFormer "Man"]
-#eval (actionsWithClassifierMaps baseActions "Man").length  -- base + 6 terms
-
--- Π/Σ aliases over "S1":
-def Γs1 : Context := (PEN.CAD.step Γu (.declareTypeFormer "S1")).getD Γu
-#eval (enumPiSigmaAliasesFor "S1" Γs1).length  -- 5
-
+/--
+If Γ already has both Π and Σ, enumerate the five exact alias terms
+(Π: arrow/forall/eval; Σ: prod/exists) that are present in `sc.actions` but
+not yet installed in Γ. Returning exact atoms yields ν = 5 for the Π/Σ pair.
 -/
+def enumPiSigmaAliases : FrontierEnumerator :=
+{
+  run := fun (sc : ScopeConfig) (Γ : Context) =>
+    if Γ.hasTypeFormer "Pi" && Γ.hasTypeFormer "Sigma" then
+      let ys     := sc.actions.filter isPiSigmaAliasDecl
+      let notYet := ys.filter (fun a => not (holdsDecl Γ a))
+      dedupBEq notYet
+    else
+      []
+}
+
+
 
 end PEN.Novelty.Enumerators

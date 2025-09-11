@@ -71,6 +71,11 @@ deriving Repr
 @[inline] def isClassifier (s : String) : Bool :=
   s == "Pi" || s == "Sigma" || s == "Man"
 
+private def pickElimFor (actions : List AtomicDecl) (T : String) : Option AtomicDecl :=
+  actions.find? (fun a => match a with
+    | .declareEliminator _ T' => T' == T
+    | _ => false)
+
 
 /-- Only keep U0 blocked; expose everything else (incl. type formers). -/
 private def isExposedGoal : AtomicDecl → Bool
@@ -205,8 +210,20 @@ def discoverTFPairBundles (B : Context) (H : Nat) (actions : List AtomicDecl) : 
     match xs with | [] => [] | x :: xr => (xr.map (fun y => (x, y))) ++ pairs xr
   (pairs tfSeeds).foldl
     (fun acc (s₁, s₂) =>
-      let ts := dedupBEq (s₁.delta ++ s₂.delta)
-      match PEN.CAD.kappaMin? B (goalAllTargets ts) actions H with
+      let ts0 := dedupBEq (s₁.delta ++ s₂.delta)
+      let ts : List AtomicDecl :=
+        let tfs : List String :=
+          ts0.foldl (fun acc a => match a with
+            | .declareTypeFormer n => acc ++ [n]
+            | _ => acc) []
+        if ts0.all isTypeFormer ∧ tfs.length = 2 ∧ tfs.all isClassifier then
+          let T₁ := (tfs.foldl (fun m n => if m = "" ∨ n < m then n else m) "")
+          match pickElimFor actions T₁ with
+          | some e => dedupBEq (ts0 ++ [e])
+          | none   => ts0
+        else
+          ts0
+        match PEN.CAD.kappaMin? B (goalAllTargets ts) actions H with
       | some (_k, cert) =>
           let X := deltaTargets B cert.deriv
           if X.isEmpty then acc else

@@ -362,12 +362,6 @@ deriving Repr
 @[inline] def isManSolo (ts : List AtomicDecl) : Bool :=
   isClassifierTFSolo ts && containsTF "Man" ts
 
-/-- Fibonacci curriculum:
-    τ≥5  : allow {Pi,Sigma}
-    τ≥8  : allow full S¹ (TF + ≥2 ctors + elim)
-    τ≥13 : allow Man (TF‑only classifier)
-    τ≥21 : allow full S²
-    Everything else: unrestricted (subject to other gates). -/
 def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
   match commonHost? ts with
   | some h =>
@@ -386,7 +380,6 @@ def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
 
 
 /-- Policy adjustment for novelty accounting:
-    * pure classifier TF set (e.g., {Pi,Sigma})  => κ := κ + 1
     * full HIT including its TF (e.g., {S1, base, loop, rec}) => κ := κ - 1
     ρ recomputed as ν / κ' accordingly. -/
 def adjustKForPolicy (ts : List AtomicDecl) (rep : NoveltyReport) : NoveltyReport :=
@@ -402,13 +395,7 @@ def adjustKForPolicy (ts : List AtomicDecl) (rep : NoveltyReport) : NoveltyRepor
         else rep
     | none => rep
 
-  -- existing second clause: pure classifier TF *pair* (Π/Σ) ⇒ κ := κ + 1
-  let rep2 :=
-    if isPureClassifierTFSet ts then
-      let k' := rep1.kX + 1
-      let ρ' := (Float.ofNat rep1.nu) / (Float.ofNat k')
-      { rep1 with kX := k', rho := ρ' }
-    else rep1
+  let rep2 := rep1
 
   -- NEW: pure classifier TF *singleton* (e.g. Man) ⇒ κ := κ + 2 (so total κ = 3)
   if isClassifierTFSolo ts then
@@ -491,8 +478,24 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       let freshClass := freshTFs.filter isClassifierTypeName
       let dropElims  := eliminatorsForTypesIn cfg.actions freshClass
       let dropComps  := compRulesForElimsIn  cfg.actions dropElims
-      let actionsPair := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
-      ([], actionsPair, PEN.Novelty.Scope.dedupBEq (dropElims ++ dropComps))
+      /-
+      Axiom 3:
+        Alias terms like alias_prod, alias_exists, alias_arrow/forall/eval are
+        endogenous affordances of Π/Σ. Axiom 3 says novelty counts “how much X
+        simplifies the adjacent possible.” If Π is not part of X, Π‑aliases are not
+        adjacent; and if Σ is in X but Π isn’t, only Σ’s endogenous affordances are
+        present—but we already exclude endogenous keys of X via excludeKeys := keysOfTargets X.targets.
+        In other words, the only  way these aliases
+        may contribute to novelty is when both Π and Σ are introduced together.
+      -/
+      let hasPiSigma := containsTF "Pi" X.targets && containsTF "Sigma" X.targets
+      let acts' :=
+        if hasPiSigma then
+          PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
+        else
+          cfg.actions
+      (let enumsPair := if hasPiSigma then [enumPiSigmaAliases] else []
+      enumsPair, acts', [])
     else if isClassifierTFSolo X.targets then
       -- Endogenous-infrastructure exclusion for a singleton classifier
       let freshTFs   := namesOfNewTypeFormers X.targets
@@ -522,28 +525,38 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
     else
       actions'
 
-  let baseKeys := keysOfTargets X.targets
-  let exKeys :=
-    match tfOnly? X.targets, elimOnly? X.targets with
-    | some T, _ =>
-        let elimDecls := eliminatorsForTypesIn actions' [T]
-        let elimKey   := PEN.Novelty.Scope.FrontierKey.elim T
-        -- NEW: exclude each comp rule by its exact key
-        let compDecls := compRulesForElimsIn actions' elimDecls
-        let compKeys  := compDecls.map (fun d => PEN.Novelty.Scope.keyOfTarget d)
-        -- keep the coarse term key (it won't block exact keys, but harmless)
-        let termKey   := PEN.Novelty.Scope.FrontierKey.term T
-        PEN.Novelty.Scope.dedupBEq (baseKeys ++ [elimKey, termKey] ++ compKeys)
-    | none, some e =>
-        -- Eliminator-only X: exclude all its comp rules by exact keys
-        let compDecls := actions'.filter (fun a =>
-          match a with
-          | AtomicDecl.declareCompRule e' _ => e' == e
-          | _ => false)
-        let compKeys  := compDecls.map (fun d => PEN.Novelty.Scope.keyOfTarget d)
-        PEN.Novelty.Scope.dedupBEq (baseKeys ++ compKeys)
-    | none, none =>
-        baseKeys
+let baseKeys := keysOfTargets X.targets
+
+-- extra keys to suppress Π/Σ infra when both appear
+let pairInfraKeys : List FrontierKey :=
+  if isPureClassifierTFSet X.targets then
+    let freshTFs   := namesOfNewTypeFormers X.targets
+    let freshClass := freshTFs.filter isClassifierTypeName
+    let elims      := eliminatorsForTypesIn actions'' freshClass
+    let comps      := compRulesForElimsIn  actions'' elims
+    (elims.map PEN.Novelty.Scope.keyOfTarget) ++ (comps.map PEN.Novelty.Scope.keyOfTarget)
+  else
+    []
+
+let exKeys :=
+  match tfOnly? X.targets, elimOnly? X.targets with
+  | some T, _ =>
+      let elimDecls := eliminatorsForTypesIn actions' [T]
+      let elimKey   := PEN.Novelty.Scope.FrontierKey.elim T
+      let compDecls := compRulesForElimsIn actions' elimDecls
+      let compKeys  := compDecls.map (fun d => PEN.Novelty.Scope.keyOfTarget d)
+      let termKey   := PEN.Novelty.Scope.FrontierKey.term T
+      PEN.Novelty.Scope.dedupBEq (baseKeys ++ [elimKey, termKey] ++ compKeys)
+  | none, some e =>
+      let compDecls := actions'.filter (fun a =>
+        match a with
+        | AtomicDecl.declareCompRule e' _ => e' == e
+        | _ => false)
+      let compKeys  := compDecls.map PEN.Novelty.Scope.keyOfTarget
+      PEN.Novelty.Scope.dedupBEq (baseKeys ++ compKeys)
+  | none, none =>
+      PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys)
+
 
   let sc : ScopeConfig :=
     { actions       := actions''
@@ -557,7 +570,6 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   match PEN.Novelty.Novelty.noveltyForPackage? B X.targets sc (maxDepthX := H) with
   | none => none
   | some rep0 =>
-      -- apply your κ policy so: Π/Σ → κ+1; full HIT → κ−1; singleton classifier → κ+2
       let rep := adjustKForPolicy X.targets rep0
       let bar := acceptanceBar cfg.barMode hist
       let δ   := rep.rho - bar
@@ -590,10 +602,7 @@ def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDe
     let barVal  := c1.bar
     let all     := c1 :: cs
     let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
-    let accept1 := pruneAfterAccept accept0
-    -- *** NEW: apply attached preference BEFORE minimal overshoot ***
-    let pool0   := preferAccepted B accept1
-    let pool    := if pool0.isEmpty then accept1 else pool0
+    let pool    := pruneAfterAccept accept0
     match pool with
     | [] => XTickDecision.idle barVal none
     | a1 :: as =>
