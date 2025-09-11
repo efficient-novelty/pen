@@ -165,15 +165,13 @@ If Γ already has both Π and Σ, enumerate the five exact alias terms
 not yet installed in Γ. Returning exact atoms yields ν = 5 for the Π/Σ pair.
 -/
 def enumPiSigmaAliases : FrontierEnumerator :=
-{
-  run := fun (sc : ScopeConfig) (Γ : Context) =>
+  fun (sc : ScopeConfig) (Γ : Context) =>
     if Γ.hasTypeFormer "Pi" && Γ.hasTypeFormer "Sigma" then
       let ys     := sc.actions.filter isPiSigmaAliasDecl
       let notYet := ys.filter (fun a => not (holdsDecl Γ a))
       dedupBEq notYet
     else
       []
-}
 
 
 
