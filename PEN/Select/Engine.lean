@@ -42,6 +42,8 @@ open PEN.Core.Levels
 
 @[inline] def levelEnv : LevelEnv := defaultLevelEnv
 
+@[inline] def noveltyH : Nat := 2   -- Axiom 3 yardstick: local novelty gauge
+
 
 /-! ## Engine configuration and state -/
 
@@ -635,8 +637,8 @@ let exKeys :=
 let sc : ScopeConfig :=
   { actions       := actions'''
     enumerators   := enums
-    horizon       := H
-    preMaxDepth?  := some H
+    horizon       := noveltyH         -- ← fixed novelty gauge
+    preMaxDepth?  := some noveltyH    -- ← truncate pre at 2
     postMaxDepth? := some 1
     exclude       := excl
     excludeKeys   := exKeys }
@@ -854,8 +856,8 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             let sc : ScopeConfig :=
               { actions       := actions'
                 enumerators   := pkg.enumerators
-                horizon       := H
-                preMaxDepth?  := some H
+                horizon       := noveltyH
+                preMaxDepth?  := some noveltyH
                 postMaxDepth? := some 1
                 exclude       := excl
                 excludeKeys   := exKeys }
