@@ -38,7 +38,6 @@ open PEN.Novelty.Scope
 open PEN.Novelty.Novelty
 open PEN.Novelty.Enumerators
 open PEN.Select.Bar
-open PEN.Novelty.Scope
 open PEN.Core.Levels
 
 @[inline] def levelEnv : LevelEnv := defaultLevelEnv
@@ -311,21 +310,13 @@ structure EvalOutcome where
   overshoot : Float         -- ρ - bar
 deriving Repr
 
-/-- Post frontier radius (Axiom 3) -/
-@[inline] def postRadius (H : Nat) (hist : History) : Nat :=
-  match hist.length with
-  | 0 => 1  -- τ = 1
-  | 1 => 1  -- τ = 2
-  | _ => Nat.min 2 H
-
-
 /-- Build the ScopeConfig for a package at the current horizon. -/
 @[inline] def mkScope (pkg : Pkg) (H : Nat) (hist : History) : ScopeConfig :=
   { actions       := pkg.actions
     enumerators   := pkg.enumerators
     horizon       := H
     preMaxDepth?  := some H
-    postMaxDepth? := some (postRadius H hist)
+    postMaxDepth? := some 1        -- Axiom 3: radius‑1 frontier only
     exclude       := pkg.targets
     excludeKeys   := keysOfTargets pkg.targets }
 
@@ -482,11 +473,15 @@ def pruneAfterAccept (accepted : List XOutcome) : List XOutcome :=
     | none => true)
 
 
+/-- Endogenous keys (Axiom 3) for freshly introduced classifier TFs:
+    introduction rules = constructors (one key per host). -/
+@[inline] def ctorKeysForFreshClassifiers (fresh : List String) : List FrontierKey :=
+  fresh.map FrontierKey.ctor
+
+
 /-- Evaluate a discovered X: novelty with immediate frontier, plus bar & overshoot. -/
 def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : DiscoveredX)
   : Option XOutcome :=
-  let rPost := postRadius H hist
-
   /- classify the bundle X -/
   let isUnitSingleton : Bool :=
     X.targets.length = 1 && X.targets.any isUnitTF
@@ -568,34 +563,26 @@ let pairInfraKeys : List FrontierKey :=
   else
     []
 
+-- Fresh classifier TFs introduced by this X (Π, Σ, Man live at classifier level):
+let freshTFs   := namesOfNewTypeFormers X.targets
+let freshClass := freshTFs.filter isClassifierTypeName
+
+-- You already exclude recursors/comp-rules via `pairInfraKeys`.
+-- Add constructor keys for those same hosts (introduction rules are endogenous).
+let ctorKeys   := ctorKeysForFreshClassifiers freshClass
+
 let exKeys :=
-  match tfOnly? X.targets, elimOnly? X.targets with
-  | some T, _ =>
-      let elimDecls := eliminatorsForTypesIn actions' [T]
-      let elimKey   := PEN.Novelty.Scope.FrontierKey.elim T
-      let compDecls := compRulesForElimsIn actions' elimDecls
-      let compKeys  := compDecls.map (fun d => PEN.Novelty.Scope.keyOfTarget d)
-      let termKey   := PEN.Novelty.Scope.FrontierKey.term T
-      PEN.Novelty.Scope.dedupBEq (baseKeys ++ [elimKey, termKey] ++ compKeys)
-  | none, some e =>
-      let compDecls := actions'.filter (fun a =>
-        match a with
-        | AtomicDecl.declareCompRule e' _ => e' == e
-        | _ => false)
-      let compKeys  := compDecls.map PEN.Novelty.Scope.keyOfTarget
-      PEN.Novelty.Scope.dedupBEq (baseKeys ++ compKeys)
-  | none, none =>
-      PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys)
+  PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys ++ ctorKeys)
 
 
-  let sc : ScopeConfig :=
-    { actions       := actions''
-      enumerators   := enums
-      horizon       := H
-      preMaxDepth?  := some H
-      postMaxDepth? := some rPost
-      exclude       := excl
-      excludeKeys   := exKeys }
+let sc : ScopeConfig :=
+  { actions       := actions''
+    enumerators   := enums
+    horizon       := H
+    preMaxDepth?  := some H
+    postMaxDepth? := some 1
+    exclude       := excl
+    excludeKeys   := exKeys }
 
   match PEN.Novelty.Novelty.noveltyForPackage? B X.targets sc (maxDepthX := H) with
   | none => none
@@ -782,14 +769,19 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             -- final exclude set
             let excl := PEN.Novelty.Scope.dedupBEq (exclTargets ++ dropElims ++ dropComps)
 
+            let freshTFs   := namesOfNewTypeFormers pkg.targets
+            let freshClass := freshTFs.filter isClassifierTypeName
+            let ctorKeys   := ctorKeysForFreshClassifiers freshClass
+            let exKeys     := PEN.Novelty.Scope.dedupBEq (keysOfTargets pkg.targets ++ ctorKeys)
 
             let sc : ScopeConfig :=
               { actions       := pkg.actions
                 enumerators   := pkg.enumerators
                 horizon       := H
                 preMaxDepth?  := some H
-                postMaxDepth? := some (postRadius H hist)
-                exclude       := excl }
+                postMaxDepth? := some 1
+                exclude       := excl
+                excludeKeys   := exKeys }
       match PEN.Novelty.Novelty.noveltyForPackage? B pkg.targets sc (maxDepthX := H) with
         | none => none
         | some rep0 =>
