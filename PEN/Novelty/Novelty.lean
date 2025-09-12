@@ -159,11 +159,11 @@ def frontierAll (actions : List AtomicDecl)
       Key-aware frontier
 ############################# -/
 
-@[inline] def gain (e : FrontierEntry) : Nat :=
-  if e.kPreEff > e.kPost then e.kPreEff - e.kPost else 0
+@[inline] def gain (H : Nat) (e : FrontierEntry) : Nat :=
+  contribBounded H e
 
 /-- Reduce entries to one per key, keeping maximal novelty gain; ties by minimal kPost. -/
-def reduceByKeyMaxGain (es : List FrontierEntry) : List FrontierEntry :=
+def reduceByKeyMaxGain (H : Nat) (es : List FrontierEntry) : List FrontierEntry :=
   let rec upsert (kNew : FrontierKey) (eNew : FrontierEntry)
       (acc : List (FrontierKey × FrontierEntry)) : List (FrontierKey × FrontierEntry) :=
     match acc with
@@ -171,8 +171,8 @@ def reduceByKeyMaxGain (es : List FrontierEntry) : List FrontierEntry :=
     | (kOld, eOld) :: rest =>
         if kOld == kNew then
           let eBest :=
-            if gain eNew > gain eOld then eNew
-            else if gain eNew == gain eOld && eNew.kPost < eOld.kPost then eNew
+            if gain H eNew > gain H eOld then eNew
+            else if gain H eNew == gain H eOld && eNew.kPost < eOld.kPost then eNew
             else eOld
           (kOld, eBest) :: rest
         else
@@ -198,12 +198,12 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
             let kPreEff := kappaTrunc sc.actions B Y preBudget
             acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
       []
-  reduceByKeyMaxGain raw
+  reduceByKeyMaxGain H raw
 
 
 
-def noveltyFromFrontier (es : List FrontierEntry) : Nat :=
-  es.foldl (fun s e => s + (if e.kPreEff > e.kPost then 1 else 0)) 0
+def noveltyFromFrontier (H : Nat) (es : List FrontierEntry) : Nat :=
+  es.foldl (fun s e => s + contribBounded H e) 0
 
 /-! ############################
      Package evaluation (X)
@@ -221,7 +221,7 @@ def noveltyForPackage?
   | none => none
   | some (kX, post) =>
     let es := frontierAllScoped B post sc
-    let ν  := noveltyFromFrontier es
+    let ν  := noveltyFromFrontier sc.horizon es
     let ρ  := if kX = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kX)
     some { post := post, kX := kX, frontier := es, nu := ν, rho := ρ }
 

@@ -226,11 +226,12 @@ def gatherTargets (post : Context) (cfg : ScopeConfig) : List Target :=
 -/
 def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
   let H := cfg.horizon
+  let postBound := cfg.postMaxDepth?.getD 1
   let preBound := preMaxDepth cfg
   let ts := gatherTargets post cfg
 
   let goTarget (t : Target) : Option FrontierEntry :=
-    match kappaMinForDecl? post t cfg.actions H with
+    match kappaMinForDecl? post t cfg.actions postBound with
     | some (kPost, _certPost) =>
         let kPreEff := kappaTrunc cfg.actions pre t preBound
         some { target := t, kPost := kPost, kPreEff := kPreEff }
@@ -241,17 +242,16 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
       (fun acc t => match goTarget t with | some e => acc ++ [e] | none => acc)
       []
 
+  let raw' := raw.filter (fun e => not (hasKey cfg.excludeKeys e.target))
   -- schema collapse (your Axiom‑3 keying)
-  dedupFrontierByKey raw
+  dedupFrontierByKey raw'
 
 
 
 /-! ## Convenience: novelty contribution from a frontier entry -/
-@[inline] def contrib (e : FrontierEntry) : Nat :=
-  if e.kPreEff > e.kPost then 1 else 0
-
-@[inline] def sumContrib (es : List FrontierEntry) : Nat :=
-  es.foldl (fun s e => s + contrib e) 0
+@[inline] def contribBounded (H : Nat) (e : FrontierEntry) : Nat :=
+  let kpre := Nat.min e.kPreEff H
+  if kpre > e.kPost then kpre - e.kPost else 0
 
 /-- Simple labels for atoms (for discovered X names). -/
 def atomLabel : PEN.CAD.AtomicDecl → String
