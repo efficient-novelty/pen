@@ -89,6 +89,9 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
   (T == "Pi"    && isPiAliasName nm) ||
   (T == "Sigma" && isSigmaAliasName nm)
 
+@[inline] def isCtorNeighborhoodTerm (nm : String) : Bool :=
+  nm.startsWith "refl_" || nm.startsWith "transport_"
+
 /-!
 Axiom 3 schema keying:
 
@@ -117,6 +120,8 @@ Axiom 3 schema keying:
         FrontierKey.typeFormer          -- bundled closure is endogenous
       else if isPiSigmaAlias nm T then
         FrontierKey.termExact T nm      -- keep Π/Σ aliases distinct
+      else if isCtorNeighborhoodTerm nm then
+        FrontierKey.termExact T nm          -- distinct keys ⇒ both contributions count
       else
         FrontierKey.term T              -- coarse term key by host
 

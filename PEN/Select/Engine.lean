@@ -173,6 +173,16 @@ def isFib (n : Nat) : Bool :=
     []
 
 
+/-- For each constructor c : T in `ts`, propose the two point-neighborhood terms. -/
+@[inline] def neighborhoodTermsForCtors (ts : List AtomicDecl) : List AtomicDecl :=
+  ts.foldl (fun acc a =>
+    match a with
+    | .declareConstructor c T =>
+        acc ++ [AtomicDecl.declareTerm s!"refl_{c}" T,
+                AtomicDecl.declareTerm s!"transport_{c}" T]
+    | _ => acc) []
+
+
 @[inline] def isClassifierTypeName (s : String) : Bool :=
   levelOfType levelEnv s = 1   -- Pi/Sigma/Man ↦ 1
 
@@ -550,6 +560,10 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
     else
       actions'
 
+  -- Add point-neighborhood terms for any constructors inside X (e.g., star : Unit)
+  let nbTerms   := neighborhoodTermsForCtors X.targets
+  let actions''' : List AtomicDecl := PEN.Novelty.Scope.dedupBEq (actions'' ++ nbTerms)
+
 let baseKeys := keysOfTargets X.targets
 
 -- extra keys to suppress Π/Σ infra when both appear
@@ -571,12 +585,21 @@ let freshClass := freshTFs.filter isClassifierTypeName
 -- Add constructor keys for those same hosts (introduction rules are endogenous).
 let ctorKeys   := ctorKeysForFreshClassifiers freshClass
 
+-- hosts for which X adds a constructor (e.g., "Unit" when X = star)
+let ctorHostsInX : List String :=
+  X.targets.foldl (fun acc a =>
+    match a with
+    | .declareConstructor _ T => if acc.any (· == T) then acc else acc ++ [T]
+    | _ => acc) []
+
+let elimKeysForCtorHosts : List FrontierKey := ctorHostsInX.map FrontierKey.elim
+
 let exKeys :=
-  PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys ++ ctorKeys)
+  PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys ++ ctorKeys ++ elimKeysForCtorHosts)
 
 
 let sc : ScopeConfig :=
-  { actions       := actions''
+  { actions       := actions'''
     enumerators   := enums
     horizon       := H
     preMaxDepth?  := some H
@@ -772,10 +795,22 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             let freshTFs   := namesOfNewTypeFormers pkg.targets
             let freshClass := freshTFs.filter isClassifierTypeName
             let ctorKeys   := ctorKeysForFreshClassifiers freshClass
-            let exKeys     := PEN.Novelty.Scope.dedupBEq (keysOfTargets pkg.targets ++ ctorKeys)
+
+            let ctorHostsInPkg : List String :=
+              pkg.targets.foldl (fun acc a =>
+                match a with
+                | .declareConstructor _ T => if acc.any (· == T) then acc else acc ++ [T]
+                | _ => acc) []
+            let elimKeysForCtorHosts : List FrontierKey := ctorHostsInPkg.map FrontierKey.elim
+
+            let exKeys :=
+              PEN.Novelty.Scope.dedupBEq (keysOfTargets pkg.targets ++ ctorKeys ++ elimKeysForCtorHosts)
+
+            let nbTerms := neighborhoodTermsForCtors pkg.targets
+            let actions' : List AtomicDecl := PEN.Novelty.Scope.dedupBEq (pkg.actions ++ nbTerms)
 
             let sc : ScopeConfig :=
-              { actions       := pkg.actions
+              { actions       := actions'
                 enumerators   := pkg.enumerators
                 horizon       := H
                 preMaxDepth?  := some H
