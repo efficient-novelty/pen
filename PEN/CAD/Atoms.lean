@@ -142,6 +142,14 @@ end Context
   -- Π and Σ are classifier-level; Man is too
   not (T == "Pi" || T == "Sigma" || T == "Man")
 
+/-- If a term name encodes a requirement on a specific constructor, return that constructor name. -/
+@[inline] def ctorNameFromTerm? (nm : String) : Option String :=
+  let r := "refl_"
+  let t := "transport_"
+  if nm.startsWith r then some (nm.drop r.length)
+  else if nm.startsWith t then some (nm.drop t.length)
+  else none
+
 /--
 Paper‑faithful validity predicate for one atomic declaration given a context.
 
@@ -159,7 +167,13 @@ def isValidInContext (decl : AtomicDecl) (ctx : Context) : Bool :=
   | AtomicDecl.declareEliminator _ T    =>
       hasTypeFormer ctx T && (if elimNeedsCtor T then hasCtorOf ctx T else true)
   | AtomicDecl.declareCompRule e c      => hasElimName ctx e && hasCtorName ctx c
-  | AtomicDecl.declareTerm _ T          => hasTypeFormer ctx T
+  | AtomicDecl.declareTerm nm T =>
+      let base := hasTypeFormer ctx T
+      match ctorNameFromTerm? nm with
+      | some c =>
+          base && (ctx.constructors.any (fun p => p.fst == c && p.snd == T))
+      | none   =>
+          base
 
 
 

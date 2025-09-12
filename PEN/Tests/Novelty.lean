@@ -60,4 +60,25 @@ def actionsUnit : List AtomicDecl :=
     | none   => "NOVELTY_FAIL"
     | some r => s!"ν(Unit)={r.nu}  (expected 1)"
 
+  -- ν(star)=2: refl_star and transport_star each contribute +1.
+  #eval
+    let B0 := Context.empty
+    let B1 := (step B0 (declareUniverse 0)).getD B0
+    let B  := (step B1 (declareTypeFormer "Unit")).getD B1
+    let H  := 2
+    let nb := neighborhoodTermsForCtors [declareConstructor "star" "Unit"]
+    let acts := PEN.Novelty.Scope.dedupBEq (actionsUnit ++ nb)
+    let sc : PEN.Novelty.Scope.ScopeConfig :=
+      { actions := acts
+      , horizon := H
+      , preMaxDepth?  := some H
+      , postMaxDepth? := some 1
+      , exclude       := []
+      , excludeKeys   :=
+          PEN.Novelty.Scope.keysOfTargets [declareConstructor "star" "Unit"]
+          ++ [PEN.Novelty.Scope.FrontierKey.elim "Unit"] }
+    match noveltyForPackage? B [declareConstructor "star" "Unit"] sc with
+    | none   => "NOVELTY_FAIL"
+    | some r => s!"ν(star)={r.nu}  (expected 2)"
+
 end PEN.Tests.Novelty
