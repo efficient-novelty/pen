@@ -149,10 +149,6 @@ def isFib (n : Nat) : Bool :=
         if acc.any (· == n) then acc else acc ++ [n]
     | _ => acc) []
 
-@[inline] def dedupByTargets (xs : List EvalOutcome) : List EvalOutcome :=
-  xs.foldl (fun acc e =>
-    if acc.any (fun f => f.pkg.targets == e.pkg.targets) then acc else acc ++ [e]) []
-
 @[inline] def eliminatorsForTypesIn
     (actions : List AtomicDecl) (tns : List String) : List AtomicDecl :=
   actions.foldl
@@ -325,6 +321,18 @@ structure EvalOutcome where
   bar       : Float
   overshoot : Float         -- ρ - bar
 deriving Repr
+
+@[inline] def outcomeTargets (o : EvalOutcome) : List AtomicDecl :=
+  match o with
+  | ⟨p, _, _, _⟩ => p.targets
+
+@[inline] def dedupByTargets (xs : List EvalOutcome) : List EvalOutcome :=
+  xs.foldl
+    (fun acc e =>
+      let et := outcomeTargets e
+      let seen := acc.any (fun f => outcomeTargets f == et)
+      if seen then acc else acc ++ [e])
+    []
 
 /-- Build the ScopeConfig for a package at the current horizon. -/
 @[inline] def mkScope (pkg : Pkg) (H : Nat) (hist : History) : ScopeConfig :=
@@ -514,9 +522,17 @@ structure XOutcome where
   usedLvls  : List Nat    -- foundation audit: distinct levels in the minimal derivation
 deriving Repr
 
+@[inline] def xOutcomeTargets (o : XOutcome) : List AtomicDecl :=
+  match o with
+  | ⟨x, _, _, _, _⟩ => x.targets
+
 @[inline] def dedupXByTargets (xs : List XOutcome) : List XOutcome :=
-  xs.foldl (fun acc e =>
-    if acc.any (fun f => f.x.targets == e.x.targets) then acc else acc ++ [e]) []
+  xs.foldl
+    (fun acc e =>
+      let et := xOutcomeTargets e
+      let seen := acc.any (fun f => xOutcomeTargets f == et)
+      if seen then acc else acc ++ [e])
+    []
 
 /- Prefer attached work; otherwise leave the set unchanged. -/
 def preferAccepted (B : Context) (accepted : List XOutcome) : List XOutcome :=
