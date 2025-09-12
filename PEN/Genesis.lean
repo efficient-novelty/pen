@@ -369,7 +369,7 @@ def debugS2At (τtarget : Nat) : List String :=
         s!"S2: κ={rep.kX}  ν={rep.nu}  ρ={rep.rho}  overshoot={rep.rho - bar}"
       let rows :=
         rep.frontier.map (fun e =>
-          let marker := if e.kPreEff > e.kPost then "★" else "·"
+          let marker := if contribBounded H e > 0 then "★" else "·"
           s!"  {marker} {atomLabel e.target}   (post={e.kPost}, prê={e.kPreEff})")
       header :: score :: rows
 
