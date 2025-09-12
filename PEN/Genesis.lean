@@ -334,51 +334,6 @@ def preStateAt (cfg : DiscoverConfig) (st0 : EngineState) (τtarget : Nat) : Eng
         loop i' r.state'
   loop steps st0
 
-/-- Detailed breakdown for S² at the given pre-tick. Shows κ, ν, ρ and the frontier entries. -/
-def debugS2At (τtarget : Nat) : List String :=
-  let st    := preStateAt dcfg st0 τtarget
-  let B     := st.B
-  let H     := st.H
-  let hist  := st.history
-  let rPost := postRadius H hist
-  let X     : List AtomicDecl :=
-    [ declareTypeFormer "S2"
-    , declareConstructor "base0" "S2"
-    , declareConstructor "surf0" "S2"
-    , declareEliminator "rec_S2" "S2"
-    ]
-  -- mirror evalX? policy for full HIT hosts: add host-typed Π/Σ alias terms to the action menu
-  let acts  := actionsWithPiSigmaAliases dcfg.actions "S2"
-  let sc : ScopeConfig :=
-    { actions       := acts
-    , horizon       := H
-    , preMaxDepth?  := some H
-    , postMaxDepth? := some rPost
-    , exclude       := []
-    , excludeKeys   := keysOfTargets X }   -- schema-key excludes for X’s own atoms
-  match noveltyForPackage? B X sc (maxDepthX := H) with
-  | none =>
-      [ s!"[τ={st.τ}] S2: κ-search failed under H={H}" ]
-  | some rep0 =>
-      -- apply your policy tweak (full HIT => κ := κ−1)
-      let rep := adjustKForPolicy X rep0
-      let bar := acceptanceBar dcfg.barMode hist
-      let header :=
-        s!"τ={st.τ}  H={H}  rPost={rPost}  bar={bar}"
-      let score  :=
-        s!"S2: κ={rep.kX}  ν={rep.nu}  ρ={rep.rho}  overshoot={rep.rho - bar}"
-      let rows :=
-        rep.frontier.map (fun e =>
-          let marker := if contribBounded H e > 0 then "★" else "·"
-          s!"  {marker} {atomLabel e.target}   (post={e.kPost}, prê={e.kPreEff})")
-      header :: score :: rows
-
-/- Quick run: peek S² exactly at τ=21 (pre-state). -/
-def demo_debugS2At_21 : List String :=
-  debugS2At 21
-
--- #eval demo_debugS2At_21
-
 /-- Dump all evaluated candidates X at the pre-state of τtarget, sorted by ρ descending. -/
 def dumpAllCandidatesAt (τtarget : Nat) : List String :=
   let st    := preStateAt dcfg st0 τtarget
