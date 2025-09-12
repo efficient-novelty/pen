@@ -215,15 +215,7 @@ def discoverTFPairBundles (B : Context) (H : Nat) (actions : List AtomicDecl) : 
     match xs with | [] => [] | x :: xr => (xr.map (fun y => (x, y))) ++ pairs xr
   (pairs tfSeeds).foldl
     (fun acc (s₁, s₂) =>
-      let ts0 := dedupBEq (s₁.delta ++ s₂.delta)
-      let ts : List AtomicDecl :=
-        if containsTF "Pi" ts0 && containsTF "Sigma" ts0 then
-          dedupBEq (ts0 ++
-            [ AtomicDecl.declareConstructor "pair_Sigma" "Sigma"
-            , AtomicDecl.declareEliminator  "rec_Sigma"  "Sigma"
-            , AtomicDecl.declareCompRule    "rec_Sigma"  "pair_Sigma"
-            ])
-        else ts0
+      let ts : List AtomicDecl := dedupBEq (s₁.delta ++ s₂.delta)   -- keep the pair pure
       match PEN.CAD.kappaMin? B (goalAllTargets ts) actions H with
       | some (_k, cert) =>
           let X := deltaTargets B cert.deriv
