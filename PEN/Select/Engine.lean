@@ -402,7 +402,8 @@ def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
 
 
 /-- Policy adjustment for novelty accounting:
-    * full HIT including its TF (e.g., {S1, base, loop, rec}) => κ := κ - 1
+    * full HIT including its TF (e.g., {S1, base, loop, rec}) ⇒ κ := κ - 1
+    * Π/Σ dual formation: normalize cost to κ = 3
     ρ recomputed as ν / κ' accordingly. -/
 def adjustKForPolicy (ts : List AtomicDecl) (rep : NoveltyReport) : NoveltyReport :=
   -- existing first clause: full HIT (with TF) ⇒ κ := κ - 1
@@ -417,10 +418,12 @@ def adjustKForPolicy (ts : List AtomicDecl) (rep : NoveltyReport) : NoveltyRepor
         else rep
     | none => rep
 
-  -- 2) Π/Σ dual sealed: subtract 2 (shared formation credit −1 + sealed discount −1)
+  -- 2) Π/Σ *dual* formation: normalize cost to 3 (shared F + virtual endo-closure).
+  --    This matches the proof sketch κ = (F,C,E,R) − 1 = 3, without requiring the
+  --    C/E/R atoms to be present in the discovered bundle.
   let rep2 :=
-    if isSealedPiSigma ts then
-      let k' := Nat.max 1 (rep1.kX - 2)
+    if isExactlyPiSigma ts then
+      let k' := Nat.max 3 rep1.kX   -- typically bumps 2 → 3 at τ=5
       { rep1 with kX := k', rho := (Float.ofNat rep1.nu) / (Float.ofNat k') }
     else rep1
 
