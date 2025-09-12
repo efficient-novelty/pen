@@ -344,6 +344,35 @@ deriving Repr
 @[inline] def isClassifierTFSolo (ts : List AtomicDecl) : Bool :=
   allTFOnly ts && (ts.filter isClassifierTFDecl).length = 1
 
+@[inline] def isClassifierHost (h : String) : Bool :=
+  isClassifierTypeName h   -- Π, Σ, Man live at the classifier level
+
+/-- Classifier‑hosted terms that are endogenous infrastructure. -/
+@[inline] def isClassifierAttachmentTerm (nm T : String) : Bool :=
+  if isClassifierTypeName T then
+    -- already have these helpers in Scope
+    PEN.Novelty.Scope.isSchemaNameFor nm T
+    || PEN.Novelty.Scope.isPiSigmaAlias nm T
+    -- pragmatic catch-alls for standard Π/Σ intros:
+    || ((T == "Pi")    && nm.startsWith "lam_")
+    || ((T == "Sigma") && (nm.startsWith "pair_" || nm.startsWith "fst_" || nm.startsWith "snd_"))
+  else
+    false
+
+/-- True iff `ts` consists only of classifier attachments (no new TFs). -/
+@[inline] def isEndogenousClassifierPackage (ts : List AtomicDecl) : Bool :=
+  let hasClassifierTF :=
+    ts.any (fun a => match a with
+                     | .declareTypeFormer n => isClassifierTypeName n
+                     | _ => false)
+  let allAttachments :=
+    ts.all (fun a =>
+      match a with
+      | .declareTerm nm T      => isClassifierAttachmentTerm nm T
+      | .declareEliminator _ T => isClassifierTypeName T
+      | _                      => false)
+  (¬ hasClassifierTF) && allAttachments
+
 @[inline] def containsTF (nm : String) (ts : List AtomicDecl) : Bool :=
   ts.any (fun a => match a with
                    | .declareTypeFormer n => n == nm
@@ -392,9 +421,14 @@ def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
         (isFullForHost ts h) && τ ≥ 8
       else if h == "S2" then
         (isFullForHost ts h) && τ ≥ 21
+      else if isClassifierHost h then
+        -- For classifier hosts, do not allow attachments or Π/Σ singletons as X.
+        -- The only classifier item we ever allow as a package is `Man` as a singleton TF at τ ≥ 13.
+        if isManSolo ts then τ ≥ 13 else false
       else
         true
   | none =>
+      -- Π/Σ is only admissible as the sealed dual pair.
       if isExactlyPiSigma ts then τ ≥ 5
       else if isManSolo ts then τ ≥ 13
       else true
@@ -702,7 +736,10 @@ let admissible : List DiscoveredX :=
             (not (allTFOnly X.targets)) && isFullForHost X.targets h
           else true
       | none => true
-    (Lx ≤ Lstar + 1) && foundationOK && goodBundle && phaseAllow st.τ X.targets)
+
+    let notEndogenous := not (isEndogenousClassifierPackage X.targets)
+
+    (Lx ≤ Lstar + 1) && foundationOK && goodBundle && notEndogenous && phaseAllow st.τ X.targets)
     -- score
     let evals : List XOutcome :=
       admissible.foldl
@@ -741,6 +778,11 @@ def runNTicksDiscover (cfg : DiscoverConfig) (st0 : EngineState) (n : Nat)
 /-- Try to evaluate a package under budget H; returns none if κ(X|B) > H or search fails. -/
 def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pkg)
   : Option EvalOutcome :=
+
+  -- Disallow classifier-attachment packages (e.g., lam_Pi, pair_Sigma) as X.
+  if isEndogenousClassifierPackage pkg.targets then
+    none
+  else
 
   -- Skip packages that are already installed.
   if targetsHold B pkg.targets then
