@@ -122,6 +122,8 @@ Axiom 3 schema keying:
         FrontierKey.termExact T nm      -- keep Π/Σ aliases distinct
       else if isCtorNeighborhoodTerm nm then
         FrontierKey.termExact T nm          -- distinct keys ⇒ both contributions count
+      else if isClassifierTFName T then
+        FrontierKey.termExact T nm      -- external classifier terms are distinct
       else
         FrontierKey.term T              -- coarse term key by host
 

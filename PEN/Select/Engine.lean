@@ -149,6 +149,10 @@ def isFib (n : Nat) : Bool :=
         if acc.any (· == n) then acc else acc ++ [n]
     | _ => acc) []
 
+@[inline] def dedupByTargets (xs : List EvalOutcome) : List EvalOutcome :=
+  xs.foldl (fun acc e =>
+    if acc.any (fun f => f.pkg.targets == e.pkg.targets) then acc else acc ++ [e]) []
+
 @[inline] def eliminatorsForTypesIn
     (actions : List AtomicDecl) (tns : List String) : List AtomicDecl :=
   actions.foldl
@@ -361,6 +365,20 @@ deriving Repr
   else
     false
 
+@[inline] def externalClassifierTermsForTypesIn
+  (actions : List AtomicDecl) (tns : List String) : List AtomicDecl :=
+  actions.foldl
+    (fun acc a =>
+      match a with
+      | AtomicDecl.declareTerm nm T =>
+          if tns.any (· == T)
+             && isClassifierTypeName T
+             && not (isClassifierAttachmentTerm nm T) then
+            if acc.any (· == a) then acc else acc ++ [a]
+          else acc
+      | _ => acc)
+    []
+
 /-- True iff `ts` consists only of classifier attachments (no new TFs). -/
 @[inline] def isEndogenousClassifierPackage (ts : List AtomicDecl) : Bool :=
   let hasClassifierTF :=
@@ -496,6 +514,10 @@ structure XOutcome where
   usedLvls  : List Nat    -- foundation audit: distinct levels in the minimal derivation
 deriving Repr
 
+@[inline] def dedupXByTargets (xs : List XOutcome) : List XOutcome :=
+  xs.foldl (fun acc e =>
+    if acc.any (fun f => f.x.targets == e.x.targets) then acc else acc ++ [e]) []
+
 /- Prefer attached work; otherwise leave the set unchanged. -/
 def preferAccepted (B : Context) (accepted : List XOutcome) : List XOutcome :=
   let attached := accepted.filter (fun e => attachesToB B e.x.targets)
@@ -591,10 +613,18 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
 
   open PEN.Novelty.Enumerators in
   let actions'' : List AtomicDecl :=
+    PEN.Novelty.Scope.dedupBEq (
+      if xHasMan && B.hasTypeFormer "S1" then
+        actionsWithClassifierMapTerms actions' "Man"  -- adds 8 maps for Man
+      else
+        actions')
+  -- Add the 8 Man maps as novelty targets once S¹ is present (Axiom 3: external affordances)
+  let extraManTerms : List AtomicDecl :=
     if xHasMan && B.hasTypeFormer "S1" then
-      actionsWithClassifierMapTerms actions' "Man"  -- adds 8 maps for Man
-    else
-      actions'
+      externalClassifierTermsForTypesIn actions'' ["Man"]
+    else []
+  let enumsFinal : List FrontierEnumerator :=
+    (if extraManTerms.isEmpty then enums else [staticEnumerator extraManTerms] ++ enums)
 
   -- Add point-neighborhood terms for any constructors inside X (e.g., star : Unit)
   let nbTerms   := neighborhoodTermsForCtors X.targets
@@ -634,14 +664,14 @@ let exKeys :=
   PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys ++ ctorKeys ++ elimKeysForCtorHosts)
 
 
-let sc : ScopeConfig :=
-  { actions       := actions'''
-    enumerators   := enums
-    horizon       := noveltyH         -- ← fixed novelty gauge
-    preMaxDepth?  := some noveltyH    -- ← truncate pre at 2
-    postMaxDepth? := some 1
-    exclude       := excl
-    excludeKeys   := exKeys }
+  let sc : ScopeConfig :=
+    { actions       := actions'''
+      enumerators   := enumsFinal
+      horizon       := noveltyH         -- ← fixed novelty gauge
+      preMaxDepth?  := some noveltyH    -- ← truncate pre at 2
+      postMaxDepth? := some 1
+      exclude       := excl
+      excludeKeys   := exKeys }
 
   match PEN.Novelty.Novelty.noveltyForPackage? B X.targets sc (maxDepthX := H) with
   | none => none
@@ -743,7 +773,7 @@ let admissible : List DiscoveredX :=
 
     (Lx ≤ Lstar + 1) && foundationOK && goodBundle && notEndogenous && phaseAllow st.τ X.targets)
     -- score
-    let evals : List XOutcome :=
+    let evals : List XOutcome := dedupXByTargets <|
       admissible.foldl
         (fun acc X =>
           match evalX? cfg st.B H st.history X with
@@ -853,9 +883,26 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             let nbTerms := neighborhoodTermsForCtors pkg.targets
             let actions' : List AtomicDecl := PEN.Novelty.Scope.dedupBEq (pkg.actions ++ nbTerms)
 
+            let xHasManPkg : Bool :=
+              pkg.targets.any (fun a => match a with
+                                        | .declareTypeFormer "Man" => true
+                                        | _ => false)
+
+            let actionsWithMaps : List AtomicDecl :=
+              PEN.Novelty.Scope.dedupBEq (
+                if xHasManPkg && B.hasTypeFormer "S1" then
+                  actionsWithClassifierMapTerms actions' "Man"
+                else
+                  actions')
+
+            let extraManTermsPkg : List AtomicDecl :=
+              if xHasManPkg && B.hasTypeFormer "S1" then
+                externalClassifierTermsForTypesIn actionsWithMaps ["Man"]
+              else []
+
             let sc : ScopeConfig :=
-              { actions       := actions'
-                enumerators   := pkg.enumerators
+              { actions       := actionsWithMaps
+                enumerators   := pkg.enumerators ++ (if extraManTermsPkg.isEmpty then [] else [staticEnumerator extraManTermsPkg])
                 horizon       := noveltyH
                 preMaxDepth?  := some noveltyH
                 postMaxDepth? := some 1
@@ -929,7 +976,7 @@ def tick (cfg : EngineConfig) (st : EngineState) : TickResult :=
   else
     let H := st.H
     -- evaluate each package under current budget
-    let evals : List EvalOutcome :=
+    let evals : List EvalOutcome := dedupByTargets <|
       cfg.pkgs.foldl
         (fun acc pkg =>
           match evalPkg? st.B H cfg.barMode st.history pkg with
