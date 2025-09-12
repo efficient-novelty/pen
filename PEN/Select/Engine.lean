@@ -348,6 +348,25 @@ deriving Repr
                    | .declareTypeFormer n => n == nm
                    | _ => false)
 
+@[inline] def hasEndoTripleFor (host : String) (ts : List AtomicDecl) : Bool :=
+  let elims := ts.foldl (fun acc a =>
+    match a with
+    | .declareEliminator e T  => if T == host then e :: acc else acc
+    | _ => acc) []
+  let ctors := ts.foldl (fun acc a =>
+    match a with
+    | .declareConstructor c T => if T == host then c :: acc else acc
+    | _ => acc) []
+  let comps := ts.foldl (fun acc a =>
+    match a with
+    | .declareCompRule e c   => (e,c) :: acc
+    | _ => acc) []
+  elims.any (fun e => ctors.any (fun c => comps.any (· == (e,c))))
+
+@[inline] def isSealedPiSigma (ts : List AtomicDecl) : Bool :=
+  containsTF "Pi" ts && containsTF "Sigma" ts &&
+  (hasEndoTripleFor "Pi" ts || hasEndoTripleFor "Sigma" ts)
+
 @[inline] def tfsSubsetOf (allow : List String) (ts : List AtomicDecl) : Bool :=
   allTFOnly ts &&
   ts.all (fun a => match a with
@@ -398,9 +417,14 @@ def adjustKForPolicy (ts : List AtomicDecl) (rep : NoveltyReport) : NoveltyRepor
         else rep
     | none => rep
 
-  let rep2 := rep1
+  -- 2) Π/Σ dual sealed: subtract 2 (shared formation credit −1 + sealed discount −1)
+  let rep2 :=
+    if isSealedPiSigma ts then
+      let k' := Nat.max 1 (rep1.kX - 2)
+      { rep1 with kX := k', rho := (Float.ofNat rep1.nu) / (Float.ofNat k') }
+    else rep1
 
-  -- NEW: pure classifier TF *singleton* (e.g. Man) ⇒ κ := κ + 2 (so total κ = 3)
+  -- 3) pure classifier TF *singleton* (e.g. Man) ⇒ κ := κ + 2 (so total κ = 3)
   if isClassifierTFSolo ts then
     let k'' := rep2.kX + 2
     let ρ'' := (Float.ofNat rep2.nu) / (Float.ofNat k'')

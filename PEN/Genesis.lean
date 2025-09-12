@@ -92,9 +92,15 @@ def manMapDeclsRaw : List AtomicDecl :=
   let Γseed : Context :=
     { universes   := [0, 1]
     , typeFormers := ["Unit", "Pi", "Sigma", "S1", "Man"]
-    , constructors := [("star","Unit"), ("base0","S1"), ("loop0","S1")]
-    , eliminators  := [("rec_Unit","Unit"), ("rec_Pi","Pi"), ("rec_Sigma","Sigma"), ("rec_S1","S1")]
-    , compRules    := [("rec_S1","base0"), ("rec_S1","loop0")]
+    , constructors :=
+        [("star","Unit"), ("base0","S1"), ("loop0","S1"),
+         ("lam_Pi","Pi"), ("pair_Sigma","Sigma")]
+    , eliminators  :=
+        [("rec_Unit","Unit"), ("rec_Pi","Pi"), ("rec_Sigma","Sigma"),
+         ("rec_S1","S1")]
+    , compRules    :=
+        [("rec_S1","base0"), ("rec_S1","loop0"),
+         ("rec_Pi","lam_Pi"), ("rec_Sigma","pair_Sigma")]
     , terms        := [] }
   (enumClassifierMapsFor "Man") Γseed
 
@@ -141,9 +147,13 @@ def globalActions : List AtomicDecl :=
   , declareCompRule "rec_Unit" "star"
   -- Π / Σ
   , declareTypeFormer "Pi"
+  , declareConstructor "lam_Pi" "Pi"
   , declareEliminator "rec_Pi" "Pi"
+  , declareCompRule "rec_Pi" "lam_Pi"
   , declareTypeFormer "Sigma"
+  , declareConstructor "pair_Sigma" "Sigma"
   , declareEliminator "rec_Sigma" "Sigma"
+  , declareCompRule "rec_Sigma" "pair_Sigma"
   -- Man (classifier TF only; closure+elim in actionsClassifierMan)
   , declareTypeFormer "Man"
   ]

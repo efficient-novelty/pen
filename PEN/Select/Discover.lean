@@ -71,6 +71,11 @@ deriving Repr
 @[inline] def isClassifier (s : String) : Bool :=
   s == "Pi" || s == "Sigma" || s == "Man"
 
+@[inline] def containsTF (nm : String) (ts : List AtomicDecl) : Bool :=
+  ts.any (fun a => match a with
+                   | .declareTypeFormer n => n == nm
+                   | _ => false)
+
 private def pickElimFor (actions : List AtomicDecl) (T : String) : Option AtomicDecl :=
   actions.find? (fun a => match a with
     | .declareEliminator _ T' => T' == T
@@ -212,7 +217,13 @@ def discoverTFPairBundles (B : Context) (H : Nat) (actions : List AtomicDecl) : 
     (fun acc (s₁, s₂) =>
       let ts0 := dedupBEq (s₁.delta ++ s₂.delta)
       let ts : List AtomicDecl :=
-        ts0   -- keep the pair pure: exactly the two TFs
+        if containsTF "Pi" ts0 && containsTF "Sigma" ts0 then
+          dedupBEq (ts0 ++
+            [ AtomicDecl.declareConstructor "pair_Sigma" "Sigma"
+            , AtomicDecl.declareEliminator  "rec_Sigma"  "Sigma"
+            , AtomicDecl.declareCompRule    "rec_Sigma"  "pair_Sigma"
+            ])
+        else ts0
       match PEN.CAD.kappaMin? B (goalAllTargets ts) actions H with
       | some (_k, cert) =>
           let X := deltaTargets B cert.deriv
