@@ -652,11 +652,8 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   -- include the jump extras also in the actions (so κ_post can be computed)
   let jumpExtras : List AtomicDecl :=
     match fullHitHost? with
-    | some h =>
-        if opensJump then
-          hiDimCtorNeighborhoods h X.targets ++ [schemaTermForHost h]
-        else []
-    | none => []
+    | some h => hiDimCtorNeighborhoods h X.targets ++ [schemaTermForHost h]
+    | none   => []
 
   let actions''' : List AtomicDecl :=
     PEN.Novelty.Scope.dedupBEq (actions'' ++ nbTerms ++ jumpExtras)
@@ -929,11 +926,8 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             let opensJump := opensNewStratum B pkg.targets
             let jumpExtras : List AtomicDecl :=
               match fullHitHost? with
-              | some h =>
-                  if opensJump then
-                    hiDimCtorNeighborhoods h pkg.targets ++ [schemaTermForHost h]
-                  else []
-              | none => []
+              | some h => hiDimCtorNeighborhoods h pkg.targets ++ [schemaTermForHost h]
+              | none   => []
 
             let xHasManPkg : Bool :=
               pkg.targets.any (fun a => match a with
