@@ -213,7 +213,7 @@ instance : Repr ScopeConfig where
     s!"ScopeConfig(actions := {sc.actions.length}, enumerators := {sc.enumerators.length}, horizon := {sc.horizon}, preMaxDepth? := {sc.preMaxDepth?}, postMaxDepth? := {sc.postMaxDepth?}, exclude := {sc.exclude.length}, excludeKeys := {sc.excludeKeys.length})"
 
 @[inline] def preMaxDepth (cfg : ScopeConfig) : Nat :=
-  cfg.preMaxDepth?.getD (cfg.horizon + 1)
+  cfg.preMaxDepth?.getD cfg.horizon
 
 /-! ## Small list helpers (BEq-based dedup/filter) -/
 
