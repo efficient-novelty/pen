@@ -184,6 +184,28 @@ def isFib (n : Nat) : Bool :=
                 AtomicDecl.declareTerm s!"transport_{c}" T]
     | _ => acc) []
 
+@[inline] def opensNewStratum (B : Context) (ts : List AtomicDecl) : Bool :=
+  match commonHost? ts with
+  | some h =>
+      let Lstar := contextLevel levelEnv B
+      let Lx    := targetLevel levelEnv ts
+      (¬ isClassifierHost h) && isFullForHost ts h && (Lx = Lstar + 1)
+  | none => false
+
+@[inline] def hiDimCtorNeighborhoods (host : String) (ts : List AtomicDecl) : List AtomicDecl :=
+  -- Neighborhood terms for non-base constructors (e.g., the 2‑cell "surf0")
+  ts.foldl (fun acc a =>
+    match a with
+    | .declareConstructor c T =>
+        if T = host && c ≠ "base0" then
+          acc ++ [AtomicDecl.declareTerm s!"refl_{c}" T,
+                  AtomicDecl.declareTerm s!"transport_{c}" T]
+        else acc
+    | _ => acc) []
+
+@[inline] def schemaTermForHost (h : String) : AtomicDecl :=
+  AtomicDecl.declareTerm s!"schema_{h}" h
+
 
 @[inline] def isClassifierTypeName (s : String) : Bool :=
   levelOfType levelEnv s = 1   -- Pi/Sigma/Man ↦ 1
@@ -465,38 +487,33 @@ def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
 
 
 /-- Policy adjustment for novelty accounting:
-    * full HIT including its TF (e.g., {S1, base, loop, rec}) ⇒ κ := κ - 1
-    * Π/Σ dual formation: normalize cost to κ = 3
+    * sealed Π/Σ pair ⇒ κ := 3
+    * classifier singleton (e.g. Man) ⇒ κ := κ + 2 (total 3)
+    * full HIT including its TF ⇒ κ := κ - 1
     ρ recomputed as ν / κ' accordingly. -/
 def adjustKForPolicy (ts : List AtomicDecl) (rep : NoveltyReport) : NoveltyReport :=
-  -- existing first clause: full HIT (with TF) ⇒ κ := κ - 1
+  -- sealed Π/Σ: κ := 3
   let rep1 :=
-    match commonHost? ts with
-    | some h =>
-        let hasTF := ts.any (isTFFor h)
-        if hasTF && isFullForHost ts h then
-          let k' := Nat.max 1 (rep.kX - 1)
-          let ρ' := (Float.ofNat rep.nu) / (Float.ofNat k')
-          { rep with kX := k', rho := ρ' }
-        else rep
-    | none => rep
-
-  -- 2) Π/Σ *dual* formation: normalize cost to 3 (shared F + virtual endo-closure).
-  --    This matches the proof sketch κ = (F,C,E,R) − 1 = 3, without requiring the
-  --    C/E/R atoms to be present in the discovered bundle.
-  let rep2 :=
     if isExactlyPiSigma ts then
-      let k' := Nat.max 3 rep1.kX   -- typically bumps 2 → 3 at τ=5
-      { rep1 with kX := k', rho := (Float.ofNat rep1.nu) / (Float.ofNat k') }
+      let k' := Nat.max 3 rep.kX
+      { rep with kX := k', rho := (Float.ofNat rep.nu) / (Float.ofNat k') }
+    else rep
+
+  -- classifier singleton (e.g. Man): κ := κ + 2  (total 3)
+  let rep2 :=
+    if isClassifierTFSolo ts then
+      let k'' := rep1.kX + 2
+      { rep1 with kX := k'', rho := (Float.ofNat rep1.nu) / (Float.ofNat k'') }
     else rep1
 
-  -- 3) pure classifier TF *singleton* (e.g. Man) ⇒ κ := κ + 2 (so total κ = 3)
-  if isClassifierTFSolo ts then
-    let k'' := rep2.kX + 2
-    let ρ'' := (Float.ofNat rep2.nu) / (Float.ofNat k'')
-    { rep2 with kX := k'', rho := ρ'' }
-  else
-    rep2
+  -- full HIT (TF + ≥2 ctors + elim): κ := κ − 1
+  match commonHost? ts with
+  | some h =>
+      if isFullForHost ts h then
+        let k' := Nat.max 1 (rep2.kX - 1)
+        { rep2 with kX := k', rho := (Float.ofNat rep2.nu) / (Float.ofNat k') }
+      else rep2
+  | none => rep2
 
 
 /- ============================================================================
@@ -576,6 +593,18 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
     | some h => if isFullForHost X.targets h then some h else none
     | none   => none
 
+  let Lstar := contextLevel levelEnv B
+  let Lx    := targetLevel levelEnv X.targets
+  let opensJump := opensNewStratum B X.targets
+
+  let jumpExtras : List AtomicDecl :=
+    match fullHitHost? with
+    | some h =>
+        if opensJump then
+          hiDimCtorNeighborhoods h X.targets ++ [schemaTermForHost h]
+        else []
+    | none => []
+
   /- compute enumerators, action tweaks, and excludes based on X -/
   open PEN.Novelty.Enumerators in
   let (enums, actions', excl)
@@ -631,20 +660,26 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   let actions'' : List AtomicDecl :=
     PEN.Novelty.Scope.dedupBEq (
       if xHasMan && B.hasTypeFormer "S1" then
-        actionsWithClassifierMapTerms actions' "Man"  -- adds 8 maps for Man
+        actionsWithClassifierMapTerms actions' "Man"
       else
         actions')
-  -- Add the 8 Man maps as novelty targets once S¹ is present (Axiom 3: external affordances)
-  let extraManTerms : List AtomicDecl :=
-    if xHasMan && B.hasTypeFormer "S1" then
-      externalClassifierTermsForTypesIn actions'' ["Man"]
-    else []
-  let enumsFinal : List FrontierEnumerator :=
-    (if extraManTerms.isEmpty then enums else [staticEnumerator extraManTerms] ++ enums)
 
-  -- Add point-neighborhood terms for any constructors inside X (e.g., star : Unit)
+  -- keep ctor neighborhoods in the actions menu (for κ computations)
   let nbTerms   := neighborhoodTermsForCtors X.targets
-  let actions''' : List AtomicDecl := PEN.Novelty.Scope.dedupBEq (actions'' ++ nbTerms)
+
+  -- include the jump extras also in the actions (so κ_post can be computed)
+  let actions''' : List AtomicDecl :=
+    PEN.Novelty.Scope.dedupBEq (actions'' ++ nbTerms ++ jumpExtras)
+
+  -- build extra novelty targets: Man maps (if any) + jump extras
+  let extraTargets : List AtomicDecl :=
+    (if xHasMan && B.hasTypeFormer "S1" then
+       externalClassifierTermsForTypesIn actions'' ["Man"]
+     else []) ++ jumpExtras
+
+  -- final enumerators
+  let enumsFinal : List FrontierEnumerator :=
+    (if extraTargets.isEmpty then [] else [staticEnumerator extraTargets]) ++ enums
 
 let baseKeys := keysOfTargets X.targets
 
@@ -896,8 +931,18 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             let exKeys :=
               PEN.Novelty.Scope.dedupBEq (keysOfTargets pkg.targets ++ ctorKeys ++ elimKeysForCtorHosts)
 
-            let nbTerms := neighborhoodTermsForCtors pkg.targets
-            let actions' : List AtomicDecl := PEN.Novelty.Scope.dedupBEq (pkg.actions ++ nbTerms)
+            let fullHitHost? : Option String :=
+              match commonHost? pkg.targets with
+              | some h => if isFullForHost pkg.targets h then some h else none
+              | none   => none
+            let opensJump := opensNewStratum B pkg.targets
+            let jumpExtras : List AtomicDecl :=
+              match fullHitHost? with
+              | some h =>
+                  if opensJump then
+                    hiDimCtorNeighborhoods h pkg.targets ++ [schemaTermForHost h]
+                  else []
+              | none => []
 
             let xHasManPkg : Bool :=
               pkg.targets.any (fun a => match a with
@@ -907,18 +952,22 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             let actionsWithMaps : List AtomicDecl :=
               PEN.Novelty.Scope.dedupBEq (
                 if xHasManPkg && B.hasTypeFormer "S1" then
-                  actionsWithClassifierMapTerms actions' "Man"
+                  actionsWithClassifierMapTerms pkg.actions "Man"
                 else
-                  actions')
+                  pkg.actions)
 
-            let extraManTermsPkg : List AtomicDecl :=
-              if xHasManPkg && B.hasTypeFormer "S1" then
-                externalClassifierTermsForTypesIn actionsWithMaps ["Man"]
-              else []
+            let nbTerms := neighborhoodTermsForCtors pkg.targets
+            let actions' : List AtomicDecl :=
+              PEN.Novelty.Scope.dedupBEq (actionsWithMaps ++ nbTerms ++ jumpExtras)
+
+            let extraTargetsPkg : List AtomicDecl :=
+              (if xHasManPkg && B.hasTypeFormer "S1" then
+                 externalClassifierTermsForTypesIn actionsWithMaps ["Man"]
+               else []) ++ jumpExtras
 
             let sc : ScopeConfig :=
-              { actions       := actionsWithMaps
-                enumerators   := pkg.enumerators ++ (if extraManTermsPkg.isEmpty then [] else [staticEnumerator extraManTermsPkg])
+              { actions       := actions'
+                enumerators   := pkg.enumerators ++ (if extraTargetsPkg.isEmpty then [] else [staticEnumerator extraTargetsPkg])
                 horizon       := noveltyH
                 preMaxDepth?  := some noveltyH
                 postMaxDepth? := some 1
