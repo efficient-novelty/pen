@@ -293,6 +293,159 @@ def atomLabel : PEN.CAD.AtomicDecl → String
   | .declareCompRule e c    => s!"{e}∘{c}"
   | .declareTerm t _        => t
 
+/-
+  ========= Diagnostics for novelty frontier =========
+  A structured audit of the frontier construction pipeline:
+    enumerate → exclude-by-name → κ(post) gate → exclude-by-key → dedup-by-key
+-/
+
+namespace Debug
+
+open PEN.CAD
+
+/-- What got dropped by key-level dedup: which key, which entry kept, which dropped. -/
+structure DedupDrop where
+  key     : FrontierKey
+  kept    : FrontierEntry
+  dropped : FrontierEntry
+deriving Repr
+
+/-- Rollup of the entire frontier-building pipeline for debugging. -/
+structure FrontierDiag where
+  H              : Nat
+  postBound      : Nat
+  preBound       : Nat
+  enumerated     : List (Target × FrontierKey)                 -- all from enumerators (dedup by decl)
+  excludedByName : List (Target × FrontierKey)                 -- removed by cfg.exclude
+  postKappaOK    : List (Target × FrontierKey × Nat)           -- κ_post found (k ≤ postBound)
+  postKappaFail  : List (Target × FrontierKey)                 -- κ_post failed (search miss / > bound)
+  rawEntries     : List FrontierEntry                          -- after κ_post, before excludes-by-key
+  excludedByKey  : List (Target × FrontierKey)                 -- removed by cfg.excludeKeys
+  dedupDrops     : List DedupDrop                              -- removed by schema-key dedup
+  finalEntries   : List FrontierEntry                          -- survivors entering novelty sum
+  contributions  : List (Target × FrontierKey × Nat)           -- Δ(Y) per survivor
+  nuSum          : Nat                                         -- Σ Δ(Y)
+deriving Repr
+
+/-- Pretty name for a frontier key. -/
+def ppKey : FrontierKey → String
+  | .universe ℓ        => s!"U{ℓ}"
+  | .typeFormer        => "TF"
+  | .ctor T            => s!"ctor({T})"
+  | .elim T            => s!"elim({T})"
+  | .compElim e        => s!"comp({e})"
+  | .term T            => s!"term({T})"
+  | .termExact T nm    => s!"term[{T}]::{nm}"
+  | .exact t           => s!"exact({PEN.Novelty.Scope.atomLabel t})"
+
+/-- Keyed dedup with record of which entries were dropped by an existing key. -/
+def dedupFrontierByKeyWithDrops (es : List FrontierEntry)
+  : List FrontierEntry × List DedupDrop :=
+  es.foldl
+    (fun (acc, drops) e =>
+      let k := PEN.Novelty.Scope.keyOfTarget e.target
+      match acc.find? (fun e' => PEN.Novelty.Scope.keyOfTarget e'.target == k) with
+      | some keep =>
+          (acc, drops ++ [⟨k, keep, e⟩])
+      | none =>
+          (acc ++ [e], drops))
+    ([], [])
+
+/--
+  Full audit version of `frontier`:
+    returns the *same* final entries as `frontier`, plus a structured diagnostic.
+-/
+def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
+  : List FrontierEntry × FrontierDiag :=
+  let H         := cfg.horizon
+  let postBound := cfg.postMaxDepth?.getD 1
+  let preBound  := preMaxDepth cfg
+
+  -- Stage 1: enumerate targets (exactly as in `gatherTargets`, but keep the ones excluded by name)
+  let allEnum : List Target := (unionEnumerators cfg.enumerators) post |> dedupBEq
+  let enumerated : List (Target × FrontierKey) :=
+    allEnum.map (fun t => (t, keyOfTarget t))
+  let excludedByName : List (Target × FrontierKey) :=
+    allEnum.filter (fun t => memBEq t cfg.exclude)
+           |>.map (fun t => (t, keyOfTarget t))
+  let ts : List Target := filterNotIn allEnum (dedupBEq cfg.exclude)
+
+  -- Stage 2: κ(post) gate (identical to `frontier` except we record failures)
+  let goPost (t : Target) : Option Nat :=
+    match kappaMinForDecl? post t cfg.actions postBound with
+    | some (kPost, _) => some kPost
+    | none            => none
+
+  let postKappaOK : List (Target × FrontierKey × Nat) :=
+    ts.foldl (fun acc t =>
+      match goPost t with
+      | some k => acc ++ [(t, keyOfTarget t, k)]
+      | none   => acc) []
+
+  let postKappaFail : List (Target × FrontierKey) :=
+    ts.filter (fun t => match goPost t with | some _ => false | none => true)
+      |>.map (fun t => (t, keyOfTarget t))
+
+  -- Stage 3: compute pre effort for successes; build raw entries
+  let rawEntries : List FrontierEntry :=
+    postKappaOK.map (fun (t, _k, kPost) =>
+      let kPreEff := kappaTrunc cfg.actions pre t preBound
+      { target := t, kPost := kPost, kPreEff := kPreEff })
+
+  -- Stage 4: exclude by schema keys
+  let excludedByKey : List (Target × FrontierKey) :=
+    rawEntries.filter (fun e => hasKey cfg.excludeKeys e.target)
+              |>.map (fun e => (e.target, keyOfTarget e.target))
+  let raw' : List FrontierEntry :=
+    rawEntries.filter (fun e => not (hasKey cfg.excludeKeys e.target))
+
+  -- Stage 5: schema-key dedup
+  let (finalEntries, dedupDrops) := dedupFrontierByKeyWithDrops raw'
+
+  -- Stage 6: contributions + ν
+  let contributions : List (Target × FrontierKey × Nat) :=
+    finalEntries.map (fun e => (e.target, keyOfTarget e.target, contribBounded H e))
+  let nuSum : Nat := contributions.foldl (fun s (_,_,d) => s + d) 0
+
+  let diag : FrontierDiag :=
+    { H, postBound, preBound
+      , enumerated, excludedByName, postKappaOK, postKappaFail
+      , rawEntries, excludedByKey, dedupDrops, finalEntries, contributions, nuSum }
+
+  (finalEntries, diag)
+
+/-- Compact human-readable dump of the diagnostic (easy to `dbg_trace`). -/
+def render (d : FrontierDiag) : String :=
+  let header :=
+    s!"[frontier] H={d.H} preBound={d.preBound} postBound={d.postBound}\n"
+    ++ s!"  enumerated={d.enumerated.length}  excludedByName={d.excludedByName.length}\n"
+    ++ s!"  postOK={d.postKappaOK.length}  postFail={d.postKappaFail.length}\n"
+    ++ s!"  afterKeyExclude={d.rawEntries.length - d.excludedByKey.length}\n"
+    ++ s!"  dedupDrops={d.dedupDrops.length}  survivors={d.finalEntries.length}\n"
+    ++ s!"  ν={d.nuSum}\n"
+  let showPair : Target × FrontierKey → String :=
+    fun (t, k) => s!"    {PEN.Novelty.Scope.atomLabel t}  ::  {ppKey k}\n"
+  let showTriple : Target × FrontierKey × Nat → String :=
+    fun (t, k, n) => s!"    {PEN.Novelty.Scope.atomLabel t}  ::  {ppKey k}  = {n}\n"
+  let showEntry : FrontierEntry → String :=
+    fun e => s!"    {PEN.Novelty.Scope.atomLabel e.target}  ::  {ppKey (keyOfTarget e.target)}  kpost={e.kPost}  kpre~={e.kPreEff}\n"
+  let showDrop : DedupDrop → String :=
+    fun x => s!"    DROP {ppKey x.key}: {PEN.Novelty.Scope.atomLabel x.dropped.target} (kept {PEN.Novelty.Scope.atomLabel x.kept.target})\n"
+
+  let sec (ttl : String) (body : String) :=
+    if body.isEmpty then "" else s!"\n{ttl}\n{body}"
+
+  header
+  ++ sec "• Excluded by name:" (String.join (d.excludedByName.map showPair))
+  ++ sec "• κ(post) FAIL:"     (String.join (d.postKappaFail.map showPair))
+  ++ sec "• After κ(post):"    (String.join (d.rawEntries.map showEntry))
+  ++ sec "• Excluded by key:"  (String.join (d.excludedByKey.map showPair))
+  ++ sec "• Dedup drops:"      (String.join (d.dedupDrops.map showDrop))
+  ++ sec "• Survivors (Δ per key):"
+       (String.join (d.contributions.map showTriple))
+
+end Debug
+
 
 /-! # Tiny sanity checks (uncomment locally)
 
