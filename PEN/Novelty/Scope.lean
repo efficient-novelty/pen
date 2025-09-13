@@ -103,10 +103,14 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
   c.endsWith ".base0" || c == "base0"
 
 @[inline] def dimOfCtorName (c : String) : Nat :=
-  if baseCtorLike c then 0
-  else if c.contains "loop" then 1
-  else if c.contains "surf" then 2
-  else 1  -- conservative default for other positive-dim ctors
+  if baseCtorLike c then
+    0
+  else if c.endsWith ".loop0" || c == "loop0" then
+    1
+  else if c.endsWith ".surf0" || c == "surf0" then
+    2
+  else
+    1  -- conservative default for other positive-dim ctors
 
 @[inline] def hostOfElim? (Γ : Context) (e : String) : Option String :=
   (Γ.eliminators.find? (fun (e', _) => e' == e)).map (·.snd)
@@ -117,7 +121,7 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
 
 @[inline] def capForKeyWithPost (post : Context) (k : FrontierKey) : Nat :=
   match k with
-  | FrontierKey.termExact T nm =>
+  | FrontierKey.termExact _ nm =>
       match ctorNameOfNeighborhood? nm with
       | some c =>
           let d := dimOfCtorName c
@@ -128,7 +132,9 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
           else 2
   | FrontierKey.compElim e =>
       match hostOfElim? post e with
-      | some h => let d := maxCtorDimForHost post h; if d >= 2 then 3 else 2
+      | some h =>
+          let d := maxCtorDimForHost post h
+          if d >= 2 then 3 else 2
       | none   => 2
   | _ => 2
 
@@ -278,7 +284,7 @@ def gatherTargets (post : Context) (cfg : ScopeConfig) : List Target :=
    * compute truncated pre-cost κ̃(Y|pre) where failures count as H+1.
 -/
 def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
-  let H := cfg.horizon
+  let _H := cfg.horizon
   let postBound := cfg.postMaxDepth?.getD 1
   let preBound := preMaxDepth cfg
   let ts := gatherTargets post cfg
@@ -402,7 +408,7 @@ def dedupFrontierByKeyWithDrops (es : List FrontierEntry)
 -/
 def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
   : List FrontierEntry × FrontierDiag :=
-  let H         := cfg.horizon
+  let _H        := cfg.horizon
   let postBound := cfg.postMaxDepth?.getD 1
   let preBound  := preMaxDepth cfg
 
@@ -456,7 +462,7 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
   let nuSum : Nat := contributions.foldl (fun s (_,_,d) => s + d) 0
 
   let diag : FrontierDiag :=
-    { H, postBound, preBound
+    { H := cfg.horizon, postBound, preBound
       , enumerated, excludedByName, postKappaOK, postKappaFail
       , rawEntries, excludedByKey, dedupDrops, finalEntries, contributions, nuSum }
 
