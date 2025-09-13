@@ -61,6 +61,13 @@ deriving Repr
 @[inline] def goalAll (targets : List AtomicDecl) (Γ : Context) : Bool :=
   targets.all (fun t => holds Γ t)
 
+@[inline] def namesOfNewTypeFormers (ts : List AtomicDecl) : List String :=
+  ts.foldl (fun acc a =>
+    match a with
+    | AtomicDecl.declareTypeFormer n =>
+        if acc.any (· == n) then acc else acc ++ [n]
+    | _ => acc) []
+
 /-! ############################
     Bounded search (IDDFS)
 ############################# -/
@@ -159,11 +166,12 @@ def frontierAll (actions : List AtomicDecl)
       Key-aware frontier
 ############################# -/
 
-@[inline] def gain (H : Nat) (e : FrontierEntry) : Nat :=
-  contribBounded H e
+@[inline] def gainWithCaps (post : Context) (e : FrontierEntry) : Nat :=
+  let k := keyOfTarget e.target
+  contribWithCap (capForKeyWithPost post k) e
 
 /-- Reduce entries to one per key, keeping maximal novelty gain; ties by minimal kPost. -/
-def reduceByKeyMaxGain (H : Nat) (es : List FrontierEntry) : List FrontierEntry :=
+def reduceByKeyMaxGain (post : Context) (es : List FrontierEntry) : List FrontierEntry :=
   let rec upsert (kNew : FrontierKey) (eNew : FrontierEntry)
       (acc : List (FrontierKey × FrontierEntry)) : List (FrontierKey × FrontierEntry) :=
     match acc with
@@ -171,8 +179,8 @@ def reduceByKeyMaxGain (H : Nat) (es : List FrontierEntry) : List FrontierEntry 
     | (kOld, eOld) :: rest =>
         if kOld == kNew then
           let eBest :=
-            if gain H eNew > gain H eOld then eNew
-            else if gain H eNew == gain H eOld && eNew.kPost < eOld.kPost then eNew
+            if gainWithCaps post eNew > gainWithCaps post eOld then eNew
+            else if gainWithCaps post eNew == gainWithCaps post eOld && eNew.kPost < eOld.kPost then eNew
             else eOld
           (kOld, eBest) :: rest
         else
@@ -198,12 +206,12 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
             let kPreEff := kappaTrunc sc.actions B Y preBudget
             acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
       []
-  reduceByKeyMaxGain H raw
+  reduceByKeyMaxGain post raw
 
 
 
-def noveltyFromFrontier (H : Nat) (es : List FrontierEntry) : Nat :=
-  es.foldl (fun s e => s + contribBounded H e) 0
+def noveltyFromFrontier (post : Context) (es : List FrontierEntry) : Nat :=
+  sumContribWithCaps post es
 
 /-! ############################
      Package evaluation (X)
@@ -221,7 +229,12 @@ def noveltyForPackage?
   | none => none
   | some (kX, post) =>
     let es := frontierAllScoped B post sc
-    let ν  := noveltyFromFrontier sc.horizon es
+    let nuCore := noveltyFromFrontier post es
+    -- Axiom 3′: add +1 for each freshly introduced NON-classifier TF in X
+    let freshTFs   := namesOfNewTypeFormers targets
+    let freshNonCl := freshTFs.filter (fun T => not (PEN.Novelty.Scope.isClassifierTFName T))
+    let selfBonus  := freshNonCl.length
+    let ν := nuCore + selfBonus
     let ρ  := if kX = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kX)
     some { post := post, kX := kX, frontier := es, nu := ν, rho := ρ }
 

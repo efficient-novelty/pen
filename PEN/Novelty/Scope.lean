@@ -94,6 +94,44 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
 @[inline] def isCtorNeighborhoodTerm (nm : String) : Bool :=
   nm.startsWith "refl_" || nm.startsWith "transport_"
 
+@[inline] def ctorNameOfNeighborhood? (nm : String) : Option String :=
+  if nm.startsWith "refl_" then some (nm.drop 5)
+  else if nm.startsWith "transport_" then some (nm.drop 10)
+  else none
+
+@[inline] def baseCtorLike (c : String) : Bool :=
+  c.endsWith ".base0" || c == "base0"
+
+@[inline] def dimOfCtorName (c : String) : Nat :=
+  if baseCtorLike c then 0
+  else if c.contains "loop" then 1
+  else if c.contains "surf" then 2
+  else 1  -- conservative default for other positive-dim ctors
+
+@[inline] def hostOfElim? (Γ : Context) (e : String) : Option String :=
+  (Γ.eliminators.find? (fun (e', _) => e' == e)).map (·.snd)
+
+@[inline] def maxCtorDimForHost (Γ : Context) (host : String) : Nat :=
+  Γ.constructors.foldl (fun m (c, T) =>
+    if T == host then Nat.max m (dimOfCtorName c) else m) 0
+
+@[inline] def capForKeyWithPost (post : Context) (k : FrontierKey) : Nat :=
+  match k with
+  | FrontierKey.termExact T nm =>
+      match ctorNameOfNeighborhood? nm with
+      | some c =>
+          let d := dimOfCtorName c
+          if d == 0 then 0 else if d == 1 then 2 else 3
+      | none =>
+          -- Π/Σ families & closure use cap=2
+          if nm == "alias_Pi_family" || nm == "alias_Sigma_family" then 2
+          else 2
+  | FrontierKey.compElim e =>
+      match hostOfElim? post e with
+      | some h => let d := maxCtorDimForHost post h; if d >= 2 then 3 else 2
+      | none   => 2
+  | _ => 2
+
 /-!
 Axiom 3 schema keying:
 
@@ -113,29 +151,27 @@ Axiom 3 schema keying:
   | AtomicDecl.declareTypeFormer _    => FrontierKey.typeFormer
   | AtomicDecl.declareConstructor _ T => FrontierKey.ctor T
   | AtomicDecl.declareEliminator _ T  => FrontierKey.elim T
-  | AtomicDecl.declareCompRule e c =>
-      -- count each comp rule separately
-      FrontierKey.exact t
+  | AtomicDecl.declareCompRule e _ =>
+      -- Axiom 3′: comp rules bundle by eliminator
+      FrontierKey.compElim e
 
   | AtomicDecl.declareTerm nm T =>
       if isClassifierTFName T && isSchemaNameFor nm T then
-        -- classifier schemas are endogenous to the TF
-        FrontierKey.typeFormer
+        FrontierKey.typeFormer   -- classifier schema is endogenous
       else if isPiSigmaAlias nm T then
-        -- Π/Σ aliases must never collapse: keep them distinct
+        -- Π/Σ aliases at classifier level remain exact
         FrontierKey.termExact T nm
       else if isCtorNeighborhoodTerm nm then
-        -- hi-dim constructor neighborhoods are distinct targets
         FrontierKey.termExact T nm
       else if isSchemaNameFor nm T then
-        -- non-classifier schema_* terms are exact (e.g. schema_S2)
         FrontierKey.termExact T nm
       else if isClassifierTFName T then
-        -- external classifier-hosted terms are distinct
         FrontierKey.termExact T nm
       else
-        -- everything else attached to a host can be coarse
-        FrontierKey.term T
+        -- Axiom 3′: on non-classifier hosts, split Π/Σ aliases into two families
+        if isPiAliasName nm then FrontierKey.termExact T "alias_Pi_family"
+        else if isSigmaAliasName nm then FrontierKey.termExact T "alias_Sigma_family"
+        else FrontierKey.term T
 
 @[inline] def keysOfTargets (ts : List Target) : List FrontierKey :=
   let rec add (acc : List FrontierKey) (k : FrontierKey) : List FrontierKey :=
@@ -284,6 +320,15 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
   let kpre := Nat.min e.kPreEff H
   if kpre > e.kPost then kpre - e.kPost else 0
 
+@[inline] def contribWithCap (cap : Nat) (e : FrontierEntry) : Nat :=
+  let kpre := Nat.min e.kPreEff cap
+  if kpre > e.kPost then kpre - e.kPost else 0
+
+@[inline] def sumContribWithCaps (post : Context) (es : List FrontierEntry) : Nat :=
+  es.foldl (fun s e =>
+    let k := keyOfTarget e.target
+    s + contribWithCap (capForKeyWithPost post k) e) 0
+
 /-- Simple labels for atoms (for discovered X names). -/
 def atomLabel : PEN.CAD.AtomicDecl → String
   | .declareUniverse ℓ      => s!"U{ℓ}:U"         -- was "U0"
@@ -404,7 +449,10 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
 
   -- Stage 6: contributions + ν
   let contributions : List (Target × FrontierKey × Nat) :=
-    finalEntries.map (fun e => (e.target, keyOfTarget e.target, contribBounded H e))
+    finalEntries.map (fun e =>
+      let k := keyOfTarget e.target
+      let d := contribWithCap (capForKeyWithPost post k) e
+      (e.target, k, d))
   let nuSum : Nat := contributions.foldl (fun s (_,_,d) => s + d) 0
 
   let diag : FrontierDiag :=
@@ -485,7 +533,7 @@ def cfg : ScopeConfig :=
      | none      => 0
      | some Γpost =>
          let es : List FrontierEntry := frontier Γu Γpost cfg
-         sumContrib es
+         sumContribWithCaps Γpost es
 
 #eval match Γpost? with
      | none      => ([] : List (Target × Nat × Nat))   -- keep branch types aligned
