@@ -154,7 +154,7 @@ def isFib (n : Nat) : Bool :=
   actions.foldl
     (fun acc a =>
       match a with
-      | AtomicDecl.declareEliminator e T =>
+      | AtomicDecl.declareEliminator _ T =>
           if tns.any (· == T) then
             if acc.any (· == a) then acc else acc ++ [a]
           else acc
@@ -183,14 +183,6 @@ def isFib (n : Nat) : Bool :=
         acc ++ [AtomicDecl.declareTerm s!"refl_{c}" T,
                 AtomicDecl.declareTerm s!"transport_{c}" T]
     | _ => acc) []
-
-@[inline] def opensNewStratum (B : Context) (ts : List AtomicDecl) : Bool :=
-  match commonHost? ts with
-  | some h =>
-      let Lstar := contextLevel levelEnv B
-      let Lx    := targetLevel levelEnv ts
-      (¬ isClassifierHost h) && isFullForHost ts h && (Lx = Lstar + 1)
-  | none => false
 
 @[inline] def hiDimCtorNeighborhoods (host : String) (ts : List AtomicDecl) : List AtomicDecl :=
   -- Neighborhood terms for non-base constructors (e.g., the 2‑cell "surf0")
@@ -357,7 +349,7 @@ deriving Repr
     []
 
 /-- Build the ScopeConfig for a package at the current horizon. -/
-@[inline] def mkScope (pkg : Pkg) (H : Nat) (hist : History) : ScopeConfig :=
+@[inline] def mkScope (pkg : Pkg) (H : Nat) (_hist : History) : ScopeConfig :=
   { actions       := pkg.actions
     enumerators   := pkg.enumerators
     horizon       := H
@@ -483,7 +475,13 @@ def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
       else if isManSolo ts then τ ≥ 13
       else true
 
-
+@[inline] def opensNewStratum (B : Context) (ts : List AtomicDecl) : Bool :=
+  match commonHost? ts with
+  | some h =>
+      let Lstar := contextLevel levelEnv B
+      let Lx    := targetLevel levelEnv ts
+      (¬ isClassifierHost h) && isFullForHost ts h && (Lx = Lstar + 1)
+  | none => false
 
 
 /-- Policy adjustment for novelty accounting:
@@ -593,9 +591,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
     | some h => if isFullForHost X.targets h then some h else none
     | none   => none
 
-  let Lstar := contextLevel levelEnv B
-  let Lx    := targetLevel levelEnv X.targets
-  let opensJump := opensNewStratum B X.targets
+    let opensJump := opensNewStratum B X.targets
 
   let jumpExtras : List AtomicDecl :=
     match fullHitHost? with
@@ -611,13 +607,9 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       : List FrontierEnumerator × List AtomicDecl × List AtomicDecl :=
     if isUnitSingleton then
       ([enumMissingEliminators], cfg.actions, [])
-    else if isPureClassifierTFSet X.targets then
-      let freshTFs   := namesOfNewTypeFormers X.targets
-      let freshClass := freshTFs.filter isClassifierTypeName
-      let dropElims  := eliminatorsForTypesIn cfg.actions freshClass
-      let dropComps  := compRulesForElimsIn  cfg.actions dropElims
-      /-
-      Axiom 3:
+      else if isPureClassifierTFSet X.targets then
+        /-
+        Axiom 3:
         Alias terms like alias_prod, alias_exists, alias_arrow/forall/eval are
         endogenous affordances of Π/Σ. Axiom 3 says novelty counts “how much X
         simplifies the adjacent possible.” If Π is not part of X, Π‑aliases are not
@@ -632,8 +624,8 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
           PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
         else
           cfg.actions
-      (let enumsPair := if hasPiSigma then [enumPiSigmaAliases] else []
-      enumsPair, acts', [])
+        (let enumsPair := if hasPiSigma then [enumPiSigmaAliases] else []
+        enumsPair, acts', [])
     else if isClassifierTFSolo X.targets then
       -- Endogenous-infrastructure exclusion for a singleton classifier
       let freshTFs   := namesOfNewTypeFormers X.targets
@@ -755,11 +747,12 @@ deriving Repr
 def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDecision :=
   match cands with
   | [] => XTickDecision.idle 0.0 none
-  | c1 :: cs =>
-    let barVal  := c1.bar
-    let all     := c1 :: cs
-    let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
-    let pool    := pruneAfterAccept accept0
+    | c1 :: cs =>
+      let barVal  := c1.bar
+      let all     := c1 :: cs
+      let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
+      let accept  := preferAccepted B accept0
+      let pool    := pruneAfterAccept accept
     match pool with
     | [] => XTickDecision.idle barVal none
     | a1 :: as =>
