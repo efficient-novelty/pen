@@ -38,10 +38,12 @@ open PEN.Core.Levels
 ############################ -/
 
 structure WinnerInfo where
-  name : String
-  k    : Nat
-  nu   : Nat
-  rho  : Float
+  name    : String
+  k       : Nat
+  nuCore  : Nat
+  tfBonus : Nat
+  nu      : Nat
+  rho     : Float
 deriving Repr, BEq
 
 structure LedgerLine where
@@ -64,7 +66,7 @@ def joinWith (sep : String) : List String → String
   | x :: xs => x ++ sep ++ joinWith sep xs
 
 @[inline] def fmtWinner (w : WinnerInfo) : String :=
-  s!"{w.name}[κ={w.k},ν={w.nu},ρ={w.rho}]"
+  s!"{w.name}[κ={w.k},ν={w.nuCore}+{w.tfBonus}={w.nu},ρ={w.rho}]"
 
 def fmt (L : LedgerLine) : String :=
   let wsStrings : List String := L.winners.map fmtWinner
@@ -187,10 +189,12 @@ def toLedgerLine (tickIdx : Nat)
     | .idle _ _    => []
     | .realized ws =>
         ws.map (fun e =>
-          { name := e.pkg.name
-          , k    := e.report.kX
-          , nu   := e.report.nu
-          , rho  := e.report.rho })
+          { name    := e.pkg.name
+          , k       := e.report.kX
+          , nuCore  := e.report.nuCore
+          , tfBonus := e.report.tfBonus
+          , nu      := e.report.nu
+          , rho     := e.report.rho })
   let decidedStr :=
     match res.decision with
     | .idle _ (some best) => s!"idle(best={best.pkg.name}, ρ={best.report.rho})"
@@ -256,10 +260,12 @@ def toLedgerLineDiscover (tickIdx : Nat)
     | XTickDecision.realized ws =>
         ws.map (fun e =>
           let nm := nameOfX e.x.targets ++ s!" (lvls={joinWith "," (e.usedLvls.map toString)})"
-          { name := nm
-          , k    := e.report.kX
-          , nu   := e.report.nu
-          , rho  := e.report.rho })
+          { name    := nm
+          , k       := e.report.kX
+          , nuCore  := e.report.nuCore
+          , tfBonus := e.report.tfBonus
+          , nu      := e.report.nu
+          , rho     := e.report.rho })
   let decidedStr :=
     match res.decision with
     | XTickDecision.idle _ _ => "idle"

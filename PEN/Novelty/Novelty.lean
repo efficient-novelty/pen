@@ -31,6 +31,8 @@ structure NoveltyReport where
   post     : Context
   kX       : Nat
   frontier : List FrontierEntry
+  nuCore   : Nat
+  tfBonus  : Nat
   nu       : Nat
   rho      : Float
 deriving Repr
@@ -228,14 +230,14 @@ def noveltyForPackage?
   match iddfsMin sc.actions goal maxDepthX B with
   | none => none
   | some (kX, post) =>
-    let es := frontierAllScoped B post sc
-    let nuCore := noveltyFromFrontier post es
+    let es      := frontierAllScoped B post sc
+    let nuCore  := noveltyFromFrontier post es
     -- Axiom 3′: add +1 for each freshly introduced NON-classifier TF in X
     let freshTFs   := namesOfNewTypeFormers targets
     let freshNonCl := freshTFs.filter (fun T => not (PEN.Novelty.Scope.isClassifierTFName T))
-    let selfBonus  := freshNonCl.length
-    let ν := nuCore + selfBonus
-    let ρ  := if kX = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kX)
-    some { post := post, kX := kX, frontier := es, nu := ν, rho := ρ }
+    let tfBonus := freshNonCl.length
+    let ν := nuCore + tfBonus
+    let ρ := if kX = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kX)
+    some { post := post, kX := kX, frontier := es, nuCore := nuCore, tfBonus := tfBonus, nu := ν, rho := ρ }
 
 end PEN.Novelty.Novelty
