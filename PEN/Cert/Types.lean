@@ -104,8 +104,8 @@ structure NoveltyCert (pre : Context) where
 deriving Repr
 
 /-- Sum the numeric novelty contributions from a list of frontier entries. -/
-@[inline] def sumFrontierContribs (H : Nat) (es : List FrontierEntry) : Nat :=
-  es.foldl (fun s e => s + contribBounded H e) 0
+@[inline] def sumFrontierContribs (post : Context) (es : List FrontierEntry) : Nat :=
+  PEN.Novelty.Scope.sumContribWithCaps post es
 
 /-- Smart constructor from a `PackageCert` and a `NoveltyReport`. -/
 @[inline] def mkNoveltyCertFromReport
@@ -115,7 +115,7 @@ deriving Repr
   (rep : NoveltyReport)
   (entryCerts : List (FrontierEntryCert pre pkg.post) := [])
   : NoveltyCert pre :=
-  let okNu := sumFrontierContribs H rep.frontier == rep.nu
+  let okNu := sumFrontierContribs pkg.post rep.frontier == rep.nu
   { pkg        := pkg
     horizon    := H
     entries    := rep.frontier

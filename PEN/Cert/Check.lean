@@ -148,7 +148,7 @@ deriving BEq
 /-- Basic internal consistency checks for a novelty certificate. -/
 def checkNoveltyCertBasic {pre : Context} (nc : NoveltyCert pre) : Summary :=
   let pkgSum := checkPackageCertBasic nc.pkg
-  let fNu    : Flag := { label := "nu-sum", ok := (sumFrontierContribs nc.horizon nc.entries == nc.nu) }
+  let fNu    : Flag := { label := "nu-sum", ok := (sumFrontierContribs nc.pkg.post nc.entries == nc.nu) }
   let fRho   : Flag :=
     let denom := if nc.pkg.kappa = 0 then 1 else nc.pkg.kappa
     let rho'  := (Float.ofNat nc.nu) / (Float.ofNat denom)

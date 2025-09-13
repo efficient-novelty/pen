@@ -6,7 +6,7 @@
   Minimal unit test for Axiom 3 (novelty) accounting.
 
   We build a tiny action alphabet for `Unit` and check that
-    ν(Unit) = 1
+    ν(Unit) = 2
   when evaluating the package X = { typeFormer "Unit" } with the same
   exclusion policy used by the engine: endogenous attachments for a
   freshly introduced type former (its eliminator and the comp-rules
@@ -18,7 +18,7 @@
     parentheses so multi-line `let` bindings are parsed as one term.
   • We mirror the engine’s exclusion using
       `eliminatorsForTypesIn` and `compRulesForElimsIn`.
-  • If this test prints "ν(Unit)=1 (expected 1)", it passed.
+  • If this test prints "ν(Unit)=2 (expected 2)", it passed.
 -/
 import Init
 import PEN.CAD.Atoms
@@ -43,7 +43,7 @@ def actionsUnit : List AtomicDecl :=
   , declareCompRule "rec_Unit" "star"
   ]
 
-  -- ν(Unit)=1 under our Axiom 3 keying: only `star` contributes for the Unit package.
+  -- ν(Unit)=2 under our Axiom 3 keying: star contributes +1 and the self bonus adds +1.
   #eval
     let B      := Context.empty
     let H      := 2
@@ -58,7 +58,7 @@ def actionsUnit : List AtomicDecl :=
                         ++ [PEN.Novelty.Scope.FrontierKey.elim "Unit"] }
     match noveltyForPackage? B [declareTypeFormer "Unit"] sc with
     | none   => "NOVELTY_FAIL"
-    | some r => s!"ν(Unit)={r.nu}  (expected 1)"
+    | some r => s!"ν(Unit)={r.nu}  (expected 2)"
 
   -- ν(star)=2: refl_star and transport_star each contribute +1.
   #eval
