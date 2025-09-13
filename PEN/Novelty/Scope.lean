@@ -89,6 +89,8 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
   (T == "Pi"    && isPiAliasName nm) ||
   (T == "Sigma" && isSigmaAliasName nm)
 
+/-- Neighborhood terms for non-base constructors are named
+    "refl_<ctor>" / "transport_<ctor>". -/
 @[inline] def isCtorNeighborhoodTerm (nm : String) : Bool :=
   nm.startsWith "refl_" || nm.startsWith "transport_"
 
@@ -117,17 +119,23 @@ Axiom 3 schema keying:
 
   | AtomicDecl.declareTerm nm T =>
       if isClassifierTFName T && isSchemaNameFor nm T then
-        FrontierKey.typeFormer          -- bundled closure is endogenous
+        -- classifier schemas are endogenous to the TF
+        FrontierKey.typeFormer
       else if isPiSigmaAlias nm T then
-        FrontierKey.termExact T nm      -- keep Π/Σ aliases distinct
+        -- Π/Σ aliases must never collapse: keep them distinct
+        FrontierKey.termExact T nm
       else if isCtorNeighborhoodTerm nm then
-        FrontierKey.termExact T nm          -- distinct keys ⇒ both contributions count
+        -- hi-dim constructor neighborhoods are distinct targets
+        FrontierKey.termExact T nm
       else if isSchemaNameFor nm T then
-        FrontierKey.termExact T nm      -- schema_* for non-classifiers is exact
+        -- non-classifier schema_* terms are exact (e.g. schema_S2)
+        FrontierKey.termExact T nm
       else if isClassifierTFName T then
-        FrontierKey.termExact T nm      -- external classifier terms are distinct
+        -- external classifier-hosted terms are distinct
+        FrontierKey.termExact T nm
       else
-        FrontierKey.term T              -- coarse term key by host
+        -- everything else attached to a host can be coarse
+        FrontierKey.term T
 
 @[inline] def keysOfTargets (ts : List Target) : List FrontierKey :=
   let rec add (acc : List FrontierKey) (k : FrontierKey) : List FrontierKey :=
