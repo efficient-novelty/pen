@@ -591,15 +591,8 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
     | some h => if isFullForHost X.targets h then some h else none
     | none   => none
 
-    let opensJump := opensNewStratum B X.targets
-
-  let jumpExtras : List AtomicDecl :=
-    match fullHitHost? with
-    | some h =>
-        if opensJump then
-          hiDimCtorNeighborhoods h X.targets ++ [schemaTermForHost h]
-        else []
-    | none => []
+  -- Does X open the next stratum? (used to expose hi-dim ctor neighbors + schema host term)
+  let opensJump := opensNewStratum B X.targets
 
   /- compute enumerators, action tweaks, and excludes based on X -/
   open PEN.Novelty.Enumerators in
@@ -607,25 +600,22 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       : List FrontierEnumerator × List AtomicDecl × List AtomicDecl :=
     if isUnitSingleton then
       ([enumMissingEliminators], cfg.actions, [])
-      else if isPureClassifierTFSet X.targets then
-        /-
+    else if isPureClassifierTFSet X.targets then
+      /-
         Axiom 3:
-        Alias terms like alias_prod, alias_exists, alias_arrow/forall/eval are
-        endogenous affordances of Π/Σ. Axiom 3 says novelty counts “how much X
-        simplifies the adjacent possible.” If Π is not part of X, Π‑aliases are not
-        adjacent; and if Σ is in X but Π isn’t, only Σ’s endogenous affordances are
-        present—but we already exclude endogenous keys of X via excludeKeys := keysOfTargets X.targets.
-        In other words, the only  way these aliases
-        may contribute to novelty is when both Π and Σ are introduced together.
+        Alias terms like alias_prod, alias_exists, alias_arrow/forall/eval are endogenous to Π/Σ.
+        They only contribute to novelty when Π and Σ arrive together; otherwise they’re not
+        adjacent (and we exclude endogenous keys anyway via excludeKeys).
       -/
       let hasPiSigma := containsTF "Pi" X.targets && containsTF "Sigma" X.targets
-      let acts' :=
+      let acts' : List AtomicDecl :=
         if hasPiSigma then
           PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
         else
           cfg.actions
-        (let enumsPair := if hasPiSigma then [enumPiSigmaAliases] else []
-        enumsPair, acts', [])
+      let enumsPair : List FrontierEnumerator :=
+        if hasPiSigma then [enumPiSigmaAliases] else []
+      (enumsPair, acts', [])
     else if isClassifierTFSolo X.targets then
       -- Endogenous-infrastructure exclusion for a singleton classifier
       let freshTFs   := namesOfNewTypeFormers X.targets
@@ -660,6 +650,14 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   let nbTerms   := neighborhoodTermsForCtors X.targets
 
   -- include the jump extras also in the actions (so κ_post can be computed)
+  let jumpExtras : List AtomicDecl :=
+    match fullHitHost? with
+    | some h =>
+        if opensJump then
+          hiDimCtorNeighborhoods h X.targets ++ [schemaTermForHost h]
+        else []
+    | none => []
+
   let actions''' : List AtomicDecl :=
     PEN.Novelty.Scope.dedupBEq (actions'' ++ nbTerms ++ jumpExtras)
 
@@ -673,45 +671,45 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   let enumsFinal : List FrontierEnumerator :=
     (if extraTargets.isEmpty then [] else [staticEnumerator extraTargets]) ++ enums
 
-let baseKeys := keysOfTargets X.targets
+  -- schema-key excludes (Axiom 3)
+  let baseKeys := keysOfTargets X.targets
 
--- extra keys to suppress Π/Σ infra when both appear
-let pairInfraKeys : List FrontierKey :=
-  if isPureClassifierTFSet X.targets then
-    let freshTFs   := namesOfNewTypeFormers X.targets
-    let freshClass := freshTFs.filter isClassifierTypeName
-    let elims      := eliminatorsForTypesIn actions'' freshClass
-    let comps      := compRulesForElimsIn  actions'' elims
-    (elims.map PEN.Novelty.Scope.keyOfTarget) ++ (comps.map PEN.Novelty.Scope.keyOfTarget)
-  else
-    []
+  -- extra keys to suppress Π/Σ infra when both appear
+  let pairInfraKeys : List FrontierKey :=
+    if isPureClassifierTFSet X.targets then
+      let freshTFs   := namesOfNewTypeFormers X.targets
+      let freshClass := freshTFs.filter isClassifierTypeName
+      let elims      := eliminatorsForTypesIn actions'' freshClass
+      let comps      := compRulesForElimsIn  actions'' elims
+      (elims.map PEN.Novelty.Scope.keyOfTarget) ++ (comps.map PEN.Novelty.Scope.keyOfTarget)
+    else
+      []
 
--- Fresh classifier TFs introduced by this X (Π, Σ, Man live at classifier level):
-let freshTFs   := namesOfNewTypeFormers X.targets
-let freshClass := freshTFs.filter isClassifierTypeName
+  -- Fresh classifier TFs introduced by this X (Π, Σ, Man live at classifier level):
+  let freshTFs   := namesOfNewTypeFormers X.targets
+  let freshClass := freshTFs.filter isClassifierTypeName
 
--- You already exclude recursors/comp-rules via `pairInfraKeys`.
--- Add constructor keys for those same hosts (introduction rules are endogenous).
-let ctorKeys   := ctorKeysForFreshClassifiers freshClass
+  -- You already exclude recursors/comp-rules via `pairInfraKeys`.
+  -- Add constructor keys for those same hosts (introduction rules are endogenous).
+  let ctorKeys   := ctorKeysForFreshClassifiers freshClass
 
--- hosts for which X adds a constructor (e.g., "Unit" when X = star)
-let ctorHostsInX : List String :=
-  X.targets.foldl (fun acc a =>
-    match a with
-    | .declareConstructor _ T => if acc.any (· == T) then acc else acc ++ [T]
-    | _ => acc) []
+  -- hosts for which X adds a constructor (e.g., "Unit" when X = star)
+  let ctorHostsInX : List String :=
+    X.targets.foldl (fun acc a =>
+      match a with
+      | .declareConstructor _ T => if acc.any (· == T) then acc else acc ++ [T]
+      | _ => acc) []
 
-let elimKeysForCtorHosts : List FrontierKey := ctorHostsInX.map FrontierKey.elim
+  let elimKeysForCtorHosts : List FrontierKey := ctorHostsInX.map FrontierKey.elim
 
-let exKeys :=
-  PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys ++ ctorKeys ++ elimKeysForCtorHosts)
-
+  let exKeys :=
+    PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys ++ ctorKeys ++ elimKeysForCtorHosts)
 
   let sc : ScopeConfig :=
     { actions       := actions'''
       enumerators   := enumsFinal
-      horizon       := noveltyH         -- ← fixed novelty gauge
-      preMaxDepth?  := some noveltyH    -- ← truncate pre at 2
+      horizon       := noveltyH         -- fixed novelty gauge
+      preMaxDepth?  := some noveltyH
       postMaxDepth? := some 1
       exclude       := excl
       excludeKeys   := exKeys }
@@ -747,12 +745,12 @@ deriving Repr
 def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDecision :=
   match cands with
   | [] => XTickDecision.idle 0.0 none
-    | c1 :: cs =>
-      let barVal  := c1.bar
-      let all     := c1 :: cs
-      let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
-      let accept  := preferAccepted B accept0
-      let pool    := pruneAfterAccept accept
+  | c1 :: cs =>
+    let barVal  := c1.bar
+    let all     := c1 :: cs
+    let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
+    let accept  := preferAccepted B accept0
+    let pool    := pruneAfterAccept accept
     match pool with
     | [] => XTickDecision.idle barVal none
     | a1 :: as =>
