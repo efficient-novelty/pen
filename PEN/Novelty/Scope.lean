@@ -247,12 +247,26 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
   let preBound := preMaxDepth cfg
   let ts := gatherTargets post cfg
 
+  -- NEW: fast path for term targets that are explicitly one-step actions
   let goTarget (t : Target) : Option FrontierEntry :=
-    match kappaMinForDecl? post t cfg.actions postBound with
-    | some (kPost, _certPost) =>
-        let kPreEff := kappaTrunc cfg.actions pre t preBound
-        some { target := t, kPost := kPost, kPreEff := kPreEff }
-    | none => none
+    match t with
+    | AtomicDecl.declareTerm _ _ =>
+        if memBEq t cfg.actions then
+          -- one step in post by construction; pre still uses truncated solver
+          let kPreEff := kappaTrunc cfg.actions pre t preBound
+          some { target := t, kPost := 1, kPreEff := kPreEff }
+        else
+          match kappaMinForDecl? post t cfg.actions postBound with
+          | some (kPost, _) =>
+              let kPreEff := kappaTrunc cfg.actions pre t preBound
+              some { target := t, kPost := kPost, kPreEff := kPreEff }
+          | none => none
+    | _ =>
+        match kappaMinForDecl? post t cfg.actions postBound with
+        | some (kPost, _) =>
+            let kPreEff := kappaTrunc cfg.actions pre t preBound
+            some { target := t, kPost := kPost, kPreEff := kPreEff }
+        | none => none
 
   let raw :=
     ts.foldl
