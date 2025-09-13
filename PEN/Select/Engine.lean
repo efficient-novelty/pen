@@ -221,6 +221,16 @@ def isFib (n : Nat) : Bool :=
   | [AtomicDecl.declareTypeFormer T] => some T
   | _                                => none
 
+@[inline] def endoKeysForTFOnlyNonClassifier (ts : List AtomicDecl) : List FrontierKey :=
+  match tfOnly? ts with
+  | some h =>
+      if isClassifierTypeName h then [] else
+        [ FrontierKey.ctor h
+        , FrontierKey.elim h
+        , FrontierKey.compElim s!"rec_{h}"
+        , FrontierKey.termExact h s!"schema_{h}" ]
+  | none => []
+
 open PEN.Select.Discover
 
 @[inline] def isSubsetTargets (xs ys : List AtomicDecl) : Bool :=
@@ -356,7 +366,10 @@ deriving Repr
     preMaxDepth?  := some H
     postMaxDepth? := some 1        -- Axiom 3: radius‑1 frontier only
     exclude       := pkg.targets
-    excludeKeys   := keysOfTargets pkg.targets }
+    excludeKeys   :=
+      PEN.Novelty.Scope.dedupBEq
+        (keysOfTargets pkg.targets
+         ++ endoKeysForTFOnlyNonClassifier pkg.targets) }
 
 @[inline] def isUnitTF : AtomicDecl → Bool
   | .declareTypeFormer "Unit" => true | _ => false
@@ -497,10 +510,10 @@ def adjustKForPolicy (ts : List AtomicDecl) (rep : NoveltyReport) : NoveltyRepor
       { rep with kX := k', rho := (Float.ofNat rep.nu) / (Float.ofNat k') }
     else rep
 
-  -- classifier singleton (e.g. Man): κ := κ + 2  (total 3)
+  -- classifier singleton (e.g. Man): κ := max(3, κ)
   let rep2 :=
     if isClassifierTFSolo ts then
-      let k'' := rep1.kX + 2
+      let k'' := Nat.max 3 rep1.kX
       { rep1 with kX := k'', rho := (Float.ofNat rep1.nu) / (Float.ofNat k'') }
     else rep1
 
@@ -701,7 +714,12 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   let elimKeysForCtorHosts : List FrontierKey := ctorHostsInX.map FrontierKey.elim
 
   let exKeys :=
-    PEN.Novelty.Scope.dedupBEq (baseKeys ++ pairInfraKeys ++ ctorKeys ++ elimKeysForCtorHosts)
+    PEN.Novelty.Scope.dedupBEq
+      (baseKeys
+       ++ pairInfraKeys
+       ++ ctorKeys
+       ++ elimKeysForCtorHosts
+       ++ endoKeysForTFOnlyNonClassifier X.targets)
 
   let sc : ScopeConfig :=
     { actions       := actions'''
@@ -921,7 +939,11 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             let elimKeysForCtorHosts : List FrontierKey := ctorHostsInPkg.map FrontierKey.elim
 
             let exKeys :=
-              PEN.Novelty.Scope.dedupBEq (keysOfTargets pkg.targets ++ ctorKeys ++ elimKeysForCtorHosts)
+              PEN.Novelty.Scope.dedupBEq
+                (keysOfTargets pkg.targets
+                 ++ ctorKeys
+                 ++ elimKeysForCtorHosts
+                 ++ endoKeysForTFOnlyNonClassifier pkg.targets)
 
             let fullHitHost? : Option String :=
               match commonHost? pkg.targets with
@@ -965,7 +987,7 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
       match PEN.Novelty.Novelty.noveltyForPackage? B pkg.targets sc (maxDepthX := H) with
         | none => none
         | some rep0 =>
-            let rep := rep0
+            let rep := adjustKForPolicy pkg.targets rep0
             let bar := acceptanceBar mode hist
             let δ   := rep.rho - bar
             some { pkg := pkg, report := rep, bar := bar, overshoot := δ }

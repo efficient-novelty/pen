@@ -115,7 +115,7 @@ deriving Repr
   (rep : NoveltyReport)
   (entryCerts : List (FrontierEntryCert pre pkg.post) := [])
   : NoveltyCert pre :=
-  let okNu := sumFrontierContribs pkg.post rep.frontier == rep.nu
+  let okNu := sumFrontierContribs pkg.post rep.frontier == rep.nuCore
   { pkg        := pkg
     horizon    := H
     entries    := rep.frontier
