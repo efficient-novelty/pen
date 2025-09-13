@@ -526,6 +526,7 @@ structure DiscoverConfig where
   barMode : BarMode := .twoTap
   actions : List AtomicDecl := []   -- global finite menu for search/novelty
   eps     : Float := 1e-9
+  debugFrontier : Bool := true
 deriving Repr, Inhabited
 
 /-- Outcome for a discovered candidate X (for selection & printing). -/
@@ -712,15 +713,18 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       excludeKeys   := exKeys }
 
   match PEN.Novelty.Novelty.noveltyForPackage? B X.targets sc (maxDepthX := H) with
-  | none => none
-  | some rep0 =>
-      let rep := adjustKForPolicy X.targets rep0
-      let bar := acceptanceBar cfg.barMode hist
-      let δ   := rep.rho - bar
-      let usedLvls :=
-        let raw := X.steps.map (levelOfDecl levelEnv)
-        raw.foldl (fun acc ℓ => if acc.any (· == ℓ) then acc else acc ++ [ℓ]) []
-      some { x := X, report := rep, bar := bar, overshoot := δ, usedLvls := usedLvls }
+    | none => none
+    | some rep0 => do
+        let rep := adjustKForPolicy X.targets rep0
+        let diag := (PEN.Novelty.Scope.Debug.frontierWithDiag B rep.post sc).2
+        if cfg.debugFrontier then
+          dbg_trace (PEN.Novelty.Scope.Debug.render diag)
+        let bar := acceptanceBar cfg.barMode hist
+        let δ   := rep.rho - bar
+        let usedLvls :=
+          let raw := X.steps.map (levelOfDecl levelEnv)
+          raw.foldl (fun acc ℓ => if acc.any (· == ℓ) then acc else acc ++ [ℓ]) []
+        return { x := X, report := rep, bar := bar, overshoot := δ, usedLvls := usedLvls }
 
 /-- Decision type for discovery ticks (separate from package TickDecision). -/
 inductive XTickDecision
