@@ -87,24 +87,6 @@ private def isExposedGoal : AtomicDecl → Bool
   | .declareUniverse 0   => false
   | _                    => true
 
-@[inline] def truncateAtFirstNewType (B : Context) (steps : Derivation) : List AtomicDecl :=
-  -- Keep the entire prefix up to and including the first *new* type former,
-  -- then take Δ vs B (this preserves leading universe steps, etc.).
-  let rec go (acc : List AtomicDecl) (rest : Derivation) : List AtomicDecl :=
-    match rest with
-    | [] => deltaTargets B acc
-    | a :: rs =>
-      match a with
-      | .declareTypeFormer _ =>
-          if holdsDecl B a then
-            go (acc ++ [a]) rs
-          else
-            -- first *new* TF encountered: keep prefix + this TF, then take Δ
-            deltaTargets B (acc ++ [a])
-      | _ =>
-          go (acc ++ [a]) rs
-  go [] steps
-
 /--
   Discover all candidate bundles X derivable under budget H.
 
@@ -113,25 +95,17 @@ private def isExposedGoal : AtomicDecl → Bool
   relative to B. We keep only non-empty deltas.
 -/
 def discoverCandidates (B : Context) (H : Nat) (actions : List AtomicDecl) : List DiscoveredX :=
-  let bootstrap := B.universes.isEmpty
-  let primitiveAdmissible (Y : AtomicDecl) : Bool :=
-    PEN.CAD.isValidInContext Y B
-    || (bootstrap && match Y with
-                     | AtomicDecl.declareUniverse _ => true   -- allow U₁ at τ=1
-                     | _ => false)
   let goals :=
     actions.filter (fun Y =>
       isExposedGoal Y
       && not (holdsDecl B Y)
-      && primitiveAdmissible Y)
+      && PEN.CAD.isValidInContext Y B)
   goals.foldl
     (fun acc Y =>
       match kappaMinForDecl? B Y actions H with
       | none => acc
       | some (_k, cert) =>
-          -- OLD: let X := deltaTargets B cert.deriv
-          -- NEW: type-first cut
-          let X := truncateAtFirstNewType B cert.deriv
+          let X := deltaTargets B cert.deriv
           if X.isEmpty then acc else
             -- recompute post by applying only X on B (not the whole cert)
             match applyAll? B X with

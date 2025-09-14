@@ -230,17 +230,7 @@ def noveltyForPackage?
   match iddfsMin sc.actions goal maxDepthX B with
   | none => none
   | some (kX, post) =>
-    -- Build the frontier via the same pipeline we debug (Option B) …
-    let (esDiag, diag) := PEN.Novelty.Scope.Debug.frontierWithDiag B post sc
-
-    -- …but if enumerators produced nothing, fall back to the action-sourced frontier
-    -- to recover the canonical behavior used by earlier steps.
-    let es :=
-      if diag.enumerated.isEmpty then
-        frontierAllScoped B post sc
-      else
-        esDiag
-
+    let es := frontierAllScoped B post sc
     let nuCore := PEN.Novelty.Scope.sumContribWithCaps post es
 
     -- Axiom 3′: add +1 for each freshly introduced NON-classifier TF in X

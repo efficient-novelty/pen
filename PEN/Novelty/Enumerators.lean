@@ -9,7 +9,7 @@
     * Classifier maps: id, const, pi1, pi2, diag, swap  (declareTerm ... typeName)
 
   Usage pattern:
-    - Choose a host type (e.g., "S1" or "Man") or use the *_Auto version.
+    - Choose a host type (e.g., "S1" or "Man").
     - Augment `scope.actions` with `actionsWithPiSigmaAliases` or
       `actionsWithClassifierMaps`, so κ(Y | post) is realizable.
     - Add the corresponding enumerators to `scope.enumerators`.
@@ -25,18 +25,6 @@ open PEN.CAD
 open PEN.Novelty.Scope
 open AtomicDecl
 
-/-! ## Small helpers -/
-
-@[inline] def headOpt {α} : List α → Option α
-  | []      => none
-  | x :: _  => some x
-
-/-- Choose the first preferred type that exists in Γ, else the head of Γ.typeFormers. -/
-def pickHostType (Γ : Context) (preferred : List String := ["Man", "S1", "Unit"]) : Option String :=
-  match preferred.find? (fun nm => Γ.hasTypeFormer nm) with
-  | some nm => some nm
-  | none    => headOpt Γ.typeFormers
-
 /-! ## Π/Σ aliases -/
 
 def piSigmaAliasNames : List String :=
@@ -49,13 +37,6 @@ def enumPiSigmaAliasesFor (hostType : String) : FrontierEnumerator :=
       piSigmaAliasNames.map (fun nm => AtomicDecl.declareTerm nm hostType)
     else
       []
-
-/-- Auto-host Π/Σ alias enumerator: picks a reasonable host from the context. -/
-def enumPiSigmaAliasesAuto (preferred : List String := ["Man", "S1", "Unit"]) : FrontierEnumerator :=
-  fun Γ =>
-    match pickHostType Γ preferred with
-    | some host => enumPiSigmaAliasesFor host Γ
-    | none      => []
 
 
 
@@ -79,13 +60,6 @@ def enumClassifierMapsFor (typeName : String) : FrontierEnumerator :=
       (classifierMapNames typeName).map (fun nm => AtomicDecl.declareTerm nm typeName)
     else
       []
-
-/-- Auto-type classifier maps enumerator: prefer `"Man"`, else pick any available type. -/
-def enumClassifierMapsAuto (preferred : List String := ["Man"]) : FrontierEnumerator :=
-  fun Γ =>
-    match pickHostType Γ preferred with
-    | some t => enumClassifierMapsFor t Γ
-    | none   => []
 
 /-- Augment an actions list with classifier-map declareTerm steps for `typeName`. -/
 def actionsWithClassifierMaps (actions : List AtomicDecl) (typeName : String) : List AtomicDecl :=
