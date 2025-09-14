@@ -285,6 +285,22 @@ open PEN.Select.Discover  -- for `hostOf`
   allTFOnly ts && (ts.filter isClassifierTFDecl).length ≥ 2
 
 
+@[inline] def isSchemaFor (h : String) : AtomicDecl → Bool
+  | .declareTerm nm T => (T = h) && (nm = s!"schema_{h}")
+  | _ => false
+
+@[inline] def sealedClassifierHost (actions : List AtomicDecl) (ts : List AtomicDecl) : Bool :=
+  match commonHost? ts with
+  | some h =>
+      if isClassifierTypeName h then
+        let needElims := eliminatorsForTypesIn actions [h]   -- e.g. C∞_Man, hom_Pi, hom_Sigma
+        let hasElim   := needElims.all (fun e => ts.any (· == e))
+        let hasSchema := ts.any (isSchemaFor h)
+        hasElim && hasSchema
+      else
+        true
+  | none => true
+
 @[inline] def tfCountTargets (ts : List AtomicDecl) : Nat :=
   ts.foldl (fun s a => s + (match a with | .declareTypeFormer _ => 1 | _ => 0)) 0
 
@@ -663,7 +679,9 @@ let admissible : List DiscoveredX :=
       | some h =>
           if looksLikeHITHost cfg.actions h then
             (not (allTFOnly X.targets)) && isFullForHost X.targets h
-          else true
+          else
+            -- Classifiers (Π, Σ, Man): must be sealed (elim + schema_*).
+            sealedClassifierHost cfg.actions X.targets
       | none => true
 
     (Lx ≤ Lstar + 1) && foundationOK && goodBundle)

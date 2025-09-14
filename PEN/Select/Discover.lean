@@ -87,6 +87,10 @@ private def isExposedGoal : AtomicDecl → Bool
   | .declareUniverse 0   => false
   | _                    => true
 
+@[inline] def allowPrereqBoot (B : Context) : AtomicDecl → Bool
+  | .declareUniverse (Nat.succ ℓ) => (ℓ = 0) && not B.hasAnyUniverse
+  | _                                 => false
+
 /--
   Discover all candidate bundles X derivable under budget H.
 
@@ -96,10 +100,10 @@ private def isExposedGoal : AtomicDecl → Bool
 -/
 def discoverCandidates (B : Context) (H : Nat) (actions : List AtomicDecl) : List DiscoveredX :=
   let goals :=
-    actions.filter (fun Y =>
-      isExposedGoal Y
-      && not (holdsDecl B Y)
-      && PEN.CAD.isValidInContext Y B)
+    let base := actions.filter (fun Y =>
+      isExposedGoal Y && not (holdsDecl B Y)
+      && (PEN.CAD.isValidInContext Y B || allowPrereqBoot B Y))
+    if not B.hasAnyUniverse then base ++ [AtomicDecl.declareUniverse 1] else base
   goals.foldl
     (fun acc Y =>
       match kappaMinForDecl? B Y actions H with
@@ -153,7 +157,10 @@ structure Seed (start : Context) where
 deriving Repr
 
 def seeds (B : Context) (H : Nat) (actions : List AtomicDecl) : List (Seed B) :=
-  let goals := actions.filter (fun Y => isExposedGoal Y && not (holdsDecl B Y))
+  let goals := actions.filter (fun Y =>
+    isExposedGoal Y
+    && not (holdsDecl B Y)
+    && (PEN.CAD.isValidInContext Y B || allowPrereqBoot B Y))
   goals.foldl
     (fun acc Y =>
       match kappaMinForDecl? B Y actions H with
