@@ -97,11 +97,18 @@ structure EngineState where
   τ        : Nat      := 1
 deriving Repr, Inhabited
 
+/-- Optional external tick schedule. -/
+inductive Schedule
+  | none
+  | fibonacci
+deriving Repr, Inhabited
+
 /-- Engine configuration (fixed across ticks). -/
 structure EngineConfig where
   barMode : BarMode := .twoTap
   pkgs    : List Pkg := []
   eps     : Float := 1e-9
+  schedule : Schedule := .none
 deriving Repr, Inhabited
 
 /-! ## Helpers -/
@@ -116,8 +123,6 @@ def isFib (n : Nat) : Bool :=
         else loop b (a + b) fuel'
   -- start at 1,2 so the sequence we test is 1,2,3,5,8,...
   loop 1 2 (n + 1)
-
-@[inline] def fibAllowed (st : EngineState) : Bool := isFib st.τ
 
 @[inline] def floatGt (x y : Float) (eps : Float := 1e-9) : Bool :=
   x > y + eps
@@ -388,46 +393,6 @@ deriving Repr
 @[inline] def isClassifierHost (h : String) : Bool :=
   isClassifierTypeName h   -- Π, Σ, Man live at the classifier level
 
-/-- Classifier‑hosted terms that are endogenous infrastructure. -/
-@[inline] def isClassifierAttachmentTerm (nm T : String) : Bool :=
-  if isClassifierTypeName T then
-    -- already have these helpers in Scope
-    PEN.Novelty.Scope.isSchemaNameFor nm T
-    || PEN.Novelty.Scope.isPiSigmaAlias nm T
-    -- pragmatic catch-alls for standard Π/Σ intros:
-    || ((T == "Pi")    && nm.startsWith "lam_")
-    || ((T == "Sigma") && (nm.startsWith "pair_" || nm.startsWith "fst_" || nm.startsWith "snd_"))
-  else
-    false
-
-@[inline] def externalClassifierTermsForTypesIn
-  (actions : List AtomicDecl) (tns : List String) : List AtomicDecl :=
-  actions.foldl
-    (fun acc a =>
-      match a with
-      | AtomicDecl.declareTerm nm T =>
-          if tns.any (· == T)
-             && isClassifierTypeName T
-             && not (isClassifierAttachmentTerm nm T) then
-            if acc.any (· == a) then acc else acc ++ [a]
-          else acc
-      | _ => acc)
-    []
-
-/-- True iff `ts` consists only of classifier attachments (no new TFs). -/
-@[inline] def isEndogenousClassifierPackage (ts : List AtomicDecl) : Bool :=
-  let hasClassifierTF :=
-    ts.any (fun a => match a with
-                     | .declareTypeFormer n => isClassifierTypeName n
-                     | _ => false)
-  let allAttachments :=
-    ts.all (fun a =>
-      match a with
-      | .declareTerm nm T      => isClassifierAttachmentTerm nm T
-      | .declareEliminator _ T => isClassifierTypeName T
-      | _                      => false)
-  (¬ hasClassifierTF) && allAttachments
-
 @[inline] def containsTF (nm : String) (ts : List AtomicDecl) : Bool :=
   ts.any (fun a => match a with
                    | .declareTypeFormer n => n == nm
@@ -461,33 +426,6 @@ deriving Repr
 @[inline] def allowFound (ℓ Lstar : Nat) : Bool :=
   (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1)
 
-@[inline] def isExactlyPiSigma (ts : List AtomicDecl) : Bool :=
-  isPureClassifierTFSet ts
-  && containsTF "Pi" ts && containsTF "Sigma" ts
-  && tfCountTargets ts = 2
-
-@[inline] def isManSolo (ts : List AtomicDecl) : Bool :=
-  isClassifierTFSolo ts && containsTF "Man" ts
-
-def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
-  match commonHost? ts with
-  | some h =>
-      if h == "S1" then
-        (isFullForHost ts h) && τ ≥ 8
-      else if h == "S2" then
-        (isFullForHost ts h) && τ ≥ 21
-      else if isClassifierHost h then
-        -- For classifier hosts, do not allow attachments or Π/Σ singletons as X.
-        -- The only classifier item we ever allow as a package is `Man` as a singleton TF at τ ≥ 13.
-        if isManSolo ts then τ ≥ 13 else false
-      else
-        true
-  | none =>
-      -- Π/Σ is only admissible as the sealed dual pair.
-      if isExactlyPiSigma ts then τ ≥ 5
-      else if isManSolo ts then τ ≥ 13
-      else true
-
 @[inline] def opensNewStratum (B : Context) (ts : List AtomicDecl) : Bool :=
   match commonHost? ts with
   | some h =>
@@ -495,36 +433,6 @@ def phaseAllow (τ : Nat) (ts : List AtomicDecl) : Bool :=
       let Lx    := targetLevel levelEnv ts
       (¬ isClassifierHost h) && isFullForHost ts h && (Lx = Lstar + 1)
   | none => false
-
-
-/-- Policy adjustment for novelty accounting:
-    * sealed Π/Σ pair ⇒ κ := 3
-    * classifier singleton (e.g. Man) ⇒ κ := κ + 2 (total 3)
-    * full HIT including its TF ⇒ κ := κ - 1
-    ρ recomputed as ν / κ' accordingly. -/
-def adjustKForPolicy (ts : List AtomicDecl) (rep : NoveltyReport) : NoveltyReport :=
-  -- sealed Π/Σ: κ := 3
-  let rep1 :=
-    if isExactlyPiSigma ts then
-      let k' := Nat.max 3 rep.kX
-      { rep with kX := k', rho := (Float.ofNat rep.nu) / (Float.ofNat k') }
-    else rep
-
-  -- classifier singleton (e.g. Man): κ := max(3, κ)
-  let rep2 :=
-    if isClassifierTFSolo ts then
-      let k'' := Nat.max 3 rep1.kX
-      { rep1 with kX := k'', rho := (Float.ofNat rep1.nu) / (Float.ofNat k'') }
-    else rep1
-
-  -- full HIT (TF + ≥2 ctors + elim): κ := κ − 1
-  match commonHost? ts with
-  | some h =>
-      if isFullForHost ts h then
-        let k' := Nat.max 1 (rep2.kX - 1)
-        { rep2 with kX := k', rho := (Float.ofNat rep2.nu) / (Float.ofNat k') }
-      else rep2
-  | none => rep2
 
 
 /- ============================================================================
@@ -540,6 +448,7 @@ structure DiscoverConfig where
   actions : List AtomicDecl := []   -- global finite menu for search/novelty
   eps     : Float := 1e-9
   debugFrontier : Bool := true
+  schedule : Schedule := .none
 deriving Repr, Inhabited
 
 /-- Outcome for a discovered candidate X (for selection & printing). -/
@@ -586,12 +495,6 @@ def pruneAfterAccept (accepted : List XOutcome) : List XOutcome :=
     | none => true)
 
 
-/-- Endogenous keys (Axiom 3) for freshly introduced classifier TFs:
-    introduction rules = constructors (one key per host). -/
-@[inline] def ctorKeysForFreshClassifiers (fresh : List String) : List FrontierKey :=
-  fresh.map FrontierKey.ctor
-
-
 /-- Evaluate a discovered X: novelty with immediate frontier, plus bar & overshoot. -/
 def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : DiscoveredX)
   : Option XOutcome :=
@@ -610,41 +513,19 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
 
   /- compute enumerators, action tweaks, and excludes based on X -/
   open PEN.Novelty.Enumerators in
-  let (enums, actions', excl)
-      : List FrontierEnumerator × List AtomicDecl × List AtomicDecl :=
-    if isUnitSingleton then
-      ([enumMissingEliminators], cfg.actions, [])
-    else if isPureClassifierTFSet X.targets then
-      /-
-        Axiom 3:
-        Alias terms like alias_prod, alias_exists, alias_arrow/forall/eval are endogenous to Π/Σ.
-        They only contribute to novelty when Π and Σ arrive together; otherwise they’re not
-        adjacent (and we exclude endogenous keys anyway via excludeKeys).
-      -/
+  let actions' : List AtomicDecl :=
+    if isPureClassifierTFSet X.targets then
       let hasPiSigma := containsTF "Pi" X.targets && containsTF "Sigma" X.targets
-      let acts' : List AtomicDecl :=
-        if hasPiSigma then
-          PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
-        else
-          cfg.actions
-      let enumsPair : List FrontierEnumerator :=
-        if hasPiSigma then [enumPiSigmaAliases] else []
-      (enumsPair, acts', [])
+      if hasPiSigma then
+        PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
+      else
+        cfg.actions
     else if isClassifierTFSolo X.targets then
-      -- Endogenous-infrastructure exclusion for a singleton classifier
-      let freshTFs   := namesOfNewTypeFormers X.targets
-      let freshClass := freshTFs.filter isClassifierTypeName
-      let dropElims  := eliminatorsForTypesIn cfg.actions freshClass
-      let dropSchema := schemaTermsForTypesIn cfg.actions freshClass
-      ([], cfg.actions, PEN.Novelty.Scope.dedupBEq (dropElims ++ dropSchema))
+      cfg.actions
     else
       match fullHitHost? with
-      | some h =>
-          let enums   := [enumMissingCompRules, enumPiSigmaAliasesFor h]
-          let actions := actionsWithPiSigmaAliases cfg.actions h
-          (enums, actions, [])
-      | none =>
-          ([], cfg.actions, [])
+      | some h => actionsWithPiSigmaAliases cfg.actions h
+      | none   => cfg.actions
 
   -- If this X contains Man, only expose the 8 Man maps once S¹ is already in B.
   let xHasMan : Bool :=
@@ -652,7 +533,6 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       | .declareTypeFormer "Man" => true
       | _ => false)
 
-  open PEN.Novelty.Enumerators in
   let actions'' : List AtomicDecl :=
     PEN.Novelty.Scope.dedupBEq (
       if xHasMan && B.hasTypeFormer "S1" then
@@ -672,68 +552,22 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   let actions''' : List AtomicDecl :=
     PEN.Novelty.Scope.dedupBEq (actions'' ++ nbTerms ++ jumpExtras)
 
-  -- build extra novelty targets: Man maps (if any) + jump extras
-  let extraTargets : List AtomicDecl :=
-    (if xHasMan && B.hasTypeFormer "S1" then
-       externalClassifierTermsForTypesIn actions'' ["Man"]
-     else []) ++ jumpExtras
-
-  -- final enumerators
-  let enumsFinal : List FrontierEnumerator :=
-    (if extraTargets.isEmpty then [] else [staticEnumerator extraTargets]) ++ enums
-
-  -- schema-key excludes (Axiom 3)
-  let baseKeys := keysOfTargets X.targets
-
-  -- extra keys to suppress Π/Σ infra when both appear
-  let pairInfraKeys : List FrontierKey :=
-    if isPureClassifierTFSet X.targets then
-      let freshTFs   := namesOfNewTypeFormers X.targets
-      let freshClass := freshTFs.filter isClassifierTypeName
-      let elims      := eliminatorsForTypesIn actions'' freshClass
-      let comps      := compRulesForElimsIn  actions'' elims
-      (elims.map PEN.Novelty.Scope.keyOfTarget) ++ (comps.map PEN.Novelty.Scope.keyOfTarget)
-    else
-      []
-
-  -- Fresh classifier TFs introduced by this X (Π, Σ, Man live at classifier level):
-  let freshTFs   := namesOfNewTypeFormers X.targets
-  let freshClass := freshTFs.filter isClassifierTypeName
-
-  -- You already exclude recursors/comp-rules via `pairInfraKeys`.
-  -- Add constructor keys for those same hosts (introduction rules are endogenous).
-  let ctorKeys   := ctorKeysForFreshClassifiers freshClass
-
-  -- hosts for which X adds a constructor (e.g., "Unit" when X = star)
-  let ctorHostsInX : List String :=
-    X.targets.foldl (fun acc a =>
-      match a with
-      | .declareConstructor _ T => if acc.any (· == T) then acc else acc ++ [T]
-      | _ => acc) []
-
-  let elimKeysForCtorHosts : List FrontierKey := ctorHostsInX.map FrontierKey.elim
-
   let exKeys :=
     PEN.Novelty.Scope.dedupBEq
-      (baseKeys
-       ++ pairInfraKeys
-       ++ ctorKeys
-       ++ elimKeysForCtorHosts
-       ++ endoKeysForTFOnlyNonClassifier X.targets)
+      (keysOfTargets X.targets ++ endoKeysForTFOnlyNonClassifier X.targets)
 
   let sc : ScopeConfig :=
     { actions       := actions'''
-      enumerators   := enumsFinal
       horizon       := noveltyH         -- fixed novelty gauge
       preMaxDepth?  := some noveltyH
       postMaxDepth? := some 1
-      exclude       := excl
+      exclude       := X.targets
       excludeKeys   := exKeys }
 
   match PEN.Novelty.Novelty.noveltyForPackage? B X.targets sc (maxDepthX := H) with
     | none => none
     | some rep0 => do
-        let rep := adjustKForPolicy X.targets rep0
+        let rep := rep0
         let diag := (PEN.Novelty.Scope.Debug.frontierWithDiag B rep.post sc).2
         if cfg.debugFrontier then
           dbg_trace (PEN.Novelty.Scope.Debug.render diag)
@@ -799,8 +633,10 @@ def applyRealizationX (st : EngineState) (winners : List XOutcome) : EngineState
 def tickDiscover (cfg : DiscoverConfig) (st : EngineState) : XTickResult :=
   let τ := st.τ
   let barNow := acceptanceBar cfg.barMode st.history
-  if !isFib τ then
-    -- Non-Fibonacci tick: idle by schedule
+  let gatedIdle := match cfg.schedule with
+                   | .fibonacci => !isFib τ
+                   | .none      => false
+  if gatedIdle then
     let st' := { st with H := st.H + 1, τ := τ + 1 }
     { decision := XTickDecision.idle barNow none, state' := st' }
   else
@@ -830,9 +666,7 @@ let admissible : List DiscoveredX :=
           else true
       | none => true
 
-    let notEndogenous := not (isEndogenousClassifierPackage X.targets)
-
-    (Lx ≤ Lstar + 1) && foundationOK && goodBundle && notEndogenous && phaseAllow st.τ X.targets)
+    (Lx ≤ Lstar + 1) && foundationOK && goodBundle)
     -- score
     let evals : List XOutcome := dedupXByTargets <|
       admissible.foldl
@@ -872,11 +706,6 @@ def runNTicksDiscover (cfg : DiscoverConfig) (st0 : EngineState) (n : Nat)
 def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pkg)
   : Option EvalOutcome :=
 
-  -- Disallow classifier-attachment packages (e.g., lam_Pi, pair_Sigma) as X.
-  if isEndogenousClassifierPackage pkg.targets then
-    none
-  else
-
   -- Skip packages that are already installed.
   if targetsHold B pkg.targets then
     none
@@ -886,111 +715,62 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
     let Lx    := targetLevel levelEnv pkg.targets
     if Lx > Lstar + 1 then
       none
+    else if H < pkg.minH then
+      none
     else
-      -- (keep your existing minH check if you still want it for now)
-      if H < pkg.minH then
-        none
-      else
-      -- Axiom 4: Foundation gate via minimal derivation certificate
-        match PEN.CAD.kappaMin? B (goalAllTargets pkg.targets) pkg.actions H with
-        | none => none
-        | some (_kXcert, certX) =>
-          let foundationOK :=
-            certX.deriv.all (fun a =>
-              let ℓ := levelOfDecl levelEnv a
-              (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1))
-          if !foundationOK then none else
-            -- NEW: extend exclude for fresh types in pkg.targets
-            --let freshTFs  := namesOfNewTypeFormers pkg.targets
-            --let dropElims := eliminatorsForTypesIn pkg.actions freshTFs
-            --let excl      := PEN.Novelty.Scope.dedupBEq (pkg.targets ++ dropElims)
-            -- fresh type formers introduced by this X
-            let freshTFs   := namesOfNewTypeFormers pkg.targets
+      match PEN.CAD.kappaMin? B (goalAllTargets pkg.targets) pkg.actions H with
+      | none => none
+      | some (_kXcert, certX) =>
+        let foundationOK :=
+          certX.deriv.all (fun a =>
+            let ℓ := levelOfDecl levelEnv a
+            (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1))
+        if !foundationOK then none else
+          let fullHitHost? : Option String :=
+            match commonHost? pkg.targets with
+            | some h => if isFullForHost pkg.targets h then some h else none
+            | none   => none
+          let opensJump := opensNewStratum B pkg.targets
+          let jumpExtras : List AtomicDecl :=
+            match fullHitHost? with
+            | some h => hiDimCtorNeighborhoods h pkg.targets ++ [schemaTermForHost h]
+            | none   => []
 
-            -- only the classifier-level ones
-            let freshClass := freshTFs.filter isClassifierTypeName
+          let xHasManPkg : Bool :=
+            pkg.targets.any (fun a => match a with
+                                      | .declareTypeFormer "Man" => true
+                                      | _ => false)
 
-            -- exclude their recursors and the comp-rules that tie to those recursors
-            let dropElims  := eliminatorsForTypesIn pkg.actions freshClass
-            let dropComps  := compRulesForElimsIn  pkg.actions dropElims
+          let actionsWithMaps : List AtomicDecl :=
+            PEN.Novelty.Scope.dedupBEq (
+              if xHasManPkg && B.hasTypeFormer "S1" then
+                actionsWithClassifierMapTerms pkg.actions "Man"
+              else
+                pkg.actions)
 
-            -- allow the TF back onto the frontier *if* X is a full HIT (TF + ≥2 ctors + elim)
-            let exclTargets :=
-              match commonHost? pkg.targets with
-              | some h =>
-                  if isFullForHost pkg.targets h && pkg.targets.any (isTFFor h) then
-                    -- keep elim/ctors excluded, but do *not* exclude the TF
-                    pkg.targets.filter (fun a => ¬ isTFFor h a)
-                  else pkg.targets
-              | none => pkg.targets
+          let nbTerms := neighborhoodTermsForCtors pkg.targets
+          let actions' : List AtomicDecl :=
+            PEN.Novelty.Scope.dedupBEq (actionsWithMaps ++ nbTerms ++ jumpExtras)
 
-            -- final exclude set
-            let excl := PEN.Novelty.Scope.dedupBEq (exclTargets ++ dropElims ++ dropComps)
+          let exKeys :=
+            PEN.Novelty.Scope.dedupBEq
+              (keysOfTargets pkg.targets ++ endoKeysForTFOnlyNonClassifier pkg.targets)
 
-            let freshTFs   := namesOfNewTypeFormers pkg.targets
-            let freshClass := freshTFs.filter isClassifierTypeName
-            let ctorKeys   := ctorKeysForFreshClassifiers freshClass
+          let sc : ScopeConfig :=
+            { actions       := actions'
+              horizon       := noveltyH
+              preMaxDepth?  := some noveltyH
+              postMaxDepth? := some 1
+              exclude       := pkg.targets
+              excludeKeys   := exKeys }
 
-            let ctorHostsInPkg : List String :=
-              pkg.targets.foldl (fun acc a =>
-                match a with
-                | .declareConstructor _ T => if acc.any (· == T) then acc else acc ++ [T]
-                | _ => acc) []
-            let elimKeysForCtorHosts : List FrontierKey := ctorHostsInPkg.map FrontierKey.elim
-
-            let exKeys :=
-              PEN.Novelty.Scope.dedupBEq
-                (keysOfTargets pkg.targets
-                 ++ ctorKeys
-                 ++ elimKeysForCtorHosts
-                 ++ endoKeysForTFOnlyNonClassifier pkg.targets)
-
-            let fullHitHost? : Option String :=
-              match commonHost? pkg.targets with
-              | some h => if isFullForHost pkg.targets h then some h else none
-              | none   => none
-            let opensJump := opensNewStratum B pkg.targets
-            let jumpExtras : List AtomicDecl :=
-              match fullHitHost? with
-              | some h => hiDimCtorNeighborhoods h pkg.targets ++ [schemaTermForHost h]
-              | none   => []
-
-            let xHasManPkg : Bool :=
-              pkg.targets.any (fun a => match a with
-                                        | .declareTypeFormer "Man" => true
-                                        | _ => false)
-
-            let actionsWithMaps : List AtomicDecl :=
-              PEN.Novelty.Scope.dedupBEq (
-                if xHasManPkg && B.hasTypeFormer "S1" then
-                  actionsWithClassifierMapTerms pkg.actions "Man"
-                else
-                  pkg.actions)
-
-            let nbTerms := neighborhoodTermsForCtors pkg.targets
-            let actions' : List AtomicDecl :=
-              PEN.Novelty.Scope.dedupBEq (actionsWithMaps ++ nbTerms ++ jumpExtras)
-
-            let extraTargetsPkg : List AtomicDecl :=
-              (if xHasManPkg && B.hasTypeFormer "S1" then
-                 externalClassifierTermsForTypesIn actionsWithMaps ["Man"]
-               else []) ++ jumpExtras
-
-            let sc : ScopeConfig :=
-              { actions       := actions'
-                enumerators   := pkg.enumerators ++ (if extraTargetsPkg.isEmpty then [] else [staticEnumerator extraTargetsPkg])
-                horizon       := noveltyH
-                preMaxDepth?  := some noveltyH
-                postMaxDepth? := some 1
-                exclude       := excl
-                excludeKeys   := exKeys }
-      match PEN.Novelty.Novelty.noveltyForPackage? B pkg.targets sc (maxDepthX := H) with
-        | none => none
-        | some rep0 =>
-            let rep := adjustKForPolicy pkg.targets rep0
-            let bar := acceptanceBar mode hist
-            let δ   := rep.rho - bar
-            some { pkg := pkg, report := rep, bar := bar, overshoot := δ }
+          match PEN.Novelty.Novelty.noveltyForPackage? B pkg.targets sc (maxDepthX := H) with
+          | none => none
+          | some rep0 =>
+              let rep := rep0
+              let bar := acceptanceBar mode hist
+              let δ   := rep.rho - bar
+              some { pkg := pkg, report := rep, bar := bar, overshoot := δ }
 
 
 
@@ -1046,7 +826,10 @@ def applyRealization (st : EngineState) (winners : List EvalOutcome) : EngineSta
 def tick (cfg : EngineConfig) (st : EngineState) : TickResult :=
   let τ := st.τ
   let barNow := acceptanceBar cfg.barMode st.history
-  if !isFib τ then
+  let gatedIdle := match cfg.schedule with
+                   | .fibonacci => !isFib τ
+                   | .none      => false
+  if gatedIdle then
     let st' := { st with H := st.H + 1, τ := τ + 1 }
     { decision := TickDecision.idle barNow none, state' := st' }
   else

@@ -260,11 +260,6 @@ def enumMissingCompRules : FrontierEnumerator :=
 @[inline] def staticEnumerator (ts : List Target) : FrontierEnumerator :=
   fun _ => ts
 
-/-- Union a list of enumerators into one (bind-free). -/
-def unionEnumerators (es : List FrontierEnumerator) : FrontierEnumerator :=
-  fun Γ =>
-    let all := es.foldl (fun acc e => acc ++ e Γ) []
-    dedupBEq all
 
 /-! ## Frontier construction -/
 
@@ -275,7 +270,7 @@ def unionEnumerators (es : List FrontierEnumerator) : FrontierEnumerator :=
 
 /-- Gather, exclude, and deduplicate raw targets from the post context. -/
 def gatherTargets (post : Context) (cfg : ScopeConfig) : List Target :=
-  let all := (unionEnumerators cfg.enumerators) post
+  let all := cfg.actions
   filterNotIn (dedupBEq all) (dedupBEq cfg.exclude)
 
 /--
@@ -289,26 +284,12 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
   let preBound := preMaxDepth cfg
   let ts := gatherTargets post cfg
 
-  -- NEW: fast path for term targets that are explicitly one-step actions
   let goTarget (t : Target) : Option FrontierEntry :=
-    match t with
-    | AtomicDecl.declareTerm _ _ =>
-        if memBEq t cfg.actions then
-          -- one step in post by construction; pre still uses truncated solver
-          let kPreEff := kappaTrunc cfg.actions pre t preBound
-          some { target := t, kPost := 1, kPreEff := kPreEff }
-        else
-          match kappaMinForDecl? post t cfg.actions postBound with
-          | some (kPost, _) =>
-              let kPreEff := kappaTrunc cfg.actions pre t preBound
-              some { target := t, kPost := kPost, kPreEff := kPreEff }
-          | none => none
-    | _ =>
-        match kappaMinForDecl? post t cfg.actions postBound with
-        | some (kPost, _) =>
-            let kPreEff := kappaTrunc cfg.actions pre t preBound
-            some { target := t, kPost := kPost, kPreEff := kPreEff }
-        | none => none
+    match kappaMinForDecl? post t cfg.actions postBound with
+    | some (kPost, _) =>
+        let kPreEff := kappaTrunc cfg.actions pre t preBound
+        some { target := t, kPost := kPost, kPreEff := kPreEff }
+    | none => none
 
   let raw :=
     ts.foldl
@@ -412,8 +393,8 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
   let postBound := cfg.postMaxDepth?.getD 1
   let preBound  := preMaxDepth cfg
 
-  -- Stage 1: enumerate targets (exactly as in `gatherTargets`, but keep the ones excluded by name)
-  let allEnum : List Target := (unionEnumerators cfg.enumerators) post |> dedupBEq
+  -- Stage 1: enumerate targets (actions only, but keep those excluded by name for diagnostics)
+  let allEnum : List Target := dedupBEq cfg.actions
   let enumerated : List (Target × FrontierKey) :=
     allEnum.map (fun t => (t, keyOfTarget t))
   let excludedByName : List (Target × FrontierKey) :=
