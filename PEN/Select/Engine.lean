@@ -221,20 +221,6 @@ def isFib (n : Nat) : Bool :=
       | _ => acc)
     []
 
-@[inline] def tfOnly? (ts : List AtomicDecl) : Option String :=
-  match ts with
-  | [AtomicDecl.declareTypeFormer T] => some T
-  | _                                => none
-
-@[inline] def endoKeysForTFOnlyNonClassifier (ts : List AtomicDecl) : List FrontierKey :=
-  match tfOnly? ts with
-  | some h =>
-      if isClassifierTypeName h then [] else
-        [ FrontierKey.ctor h
-        , FrontierKey.elim h
-        , FrontierKey.compElim s!"rec_{h}"
-        , FrontierKey.termExact h s!"schema_{h}" ]
-  | none => []
 
 open PEN.Select.Discover
 
@@ -274,8 +260,6 @@ open PEN.Select.Discover  -- for `hostOf`
 @[inline] def isTFFor (h : String) : AtomicDecl → Bool
   | .declareTypeFormer n => n == h | _ => false
 
-@[inline] def allTFOnly (ts : List AtomicDecl) : Bool :=
-  ts.all (fun a => match a with | .declareTypeFormer _ => true | _ => false)
 
 @[inline] def isClassifierTFDecl : AtomicDecl → Bool
   | .declareTypeFormer n => isClassifierTypeName n
@@ -390,7 +374,7 @@ deriving Repr
     excludeKeys   :=
       PEN.Novelty.Scope.dedupBEq
         (keysOfTargets pkg.targets
-         ++ endoKeysForTFOnlyNonClassifier pkg.targets) }
+         ++ endoKeysForTFSet pkg.targets) }
 
 @[inline] def isUnitTF : AtomicDecl → Bool
   | .declareTypeFormer "Unit" => true | _ => false
@@ -570,7 +554,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
 
   let exKeys :=
     PEN.Novelty.Scope.dedupBEq
-      (keysOfTargets X.targets ++ endoKeysForTFOnlyNonClassifier X.targets)
+      (keysOfTargets X.targets ++ endoKeysForTFSet X.targets)
 
   let sc : ScopeConfig :=
     { actions       := actions'''
@@ -772,7 +756,7 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
 
           let exKeys :=
             PEN.Novelty.Scope.dedupBEq
-              (keysOfTargets pkg.targets ++ endoKeysForTFOnlyNonClassifier pkg.targets)
+              (keysOfTargets pkg.targets ++ endoKeysForTFSet pkg.targets)
 
           let sc : ScopeConfig :=
             { actions       := actions'

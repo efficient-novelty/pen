@@ -187,6 +187,31 @@ Axiom 3 schema keying:
 @[inline] def hasKey (ks : List FrontierKey) (t : Target) : Bool :=
   ks.any (· == keyOfTarget t)
 
+@[inline] def allTFOnly (ts : List AtomicDecl) : Bool :=
+  ts.all (fun a => match a with | .declareTypeFormer _ => true | _ => false)
+
+@[inline] def tfNamesIn (ts : List AtomicDecl) : List String :=
+  ts.foldl (fun acc a =>
+    match a with
+    | AtomicDecl.declareTypeFormer n =>
+        if acc.any (· == n) then acc else acc ++ [n]
+    | _ => acc) []
+
+/-- Endogenous attachments for any TF-only bundle (incl. classifiers):
+    • ctor(host), elim(host), comp(rec_host), schema_host.
+    (Do NOT include Π/Σ alias keys here — they are intended to score.) -/
+@[inline] def endoKeysForTFSet (ts : List AtomicDecl) : List FrontierKey :=
+  if allTFOnly ts then
+    let tns := tfNamesIn ts
+    tns.foldl (fun acc h =>
+      acc ++
+        [ FrontierKey.ctor h
+        , FrontierKey.elim h
+        , FrontierKey.compElim s!"rec_{h}"
+        , FrontierKey.termExact h s!"schema_{h}" ]) []
+  else
+    []
+
 @[inline] def declDependsOn (y x : AtomicDecl) : Bool :=
   match y with
   | .declareUniverse _ => false
