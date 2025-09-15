@@ -125,7 +125,7 @@ This lets novelty measure **external affordances** (e.g. Man maps) without τ-sp
       match ctorNameOfNeighborhood? nm with
       | some c =>
           let d := dimOfCtorName c
-          if d == 0 then 0 else if d == 1 then 2 else 3
+          if d == 0 then 2 else if d == 1 then 2 else 3
       | none =>
           -- Π/Σ families & closure use cap=2
           if nm == "alias_Pi_family" || nm == "alias_Sigma_family" then 2
