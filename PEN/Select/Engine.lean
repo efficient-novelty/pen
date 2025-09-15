@@ -427,6 +427,15 @@ deriving Repr
         ts
   | none => ts
 
+@[inline] def sealHITCoreNoElim (actions : List AtomicDecl) (ts : List AtomicDecl) : List AtomicDecl :=
+  match commonHost? ts with
+  | some h =>
+      if isClassifierTypeName h then ts else
+      let tf  := (if ts.any (isTFFor h) then [] else [AtomicDecl.declareTypeFormer h])
+      let cs  := pickFirstCtors actions h 2 |>.filter (fun c => not (ts.any (· == c)))
+      PEN.Novelty.Scope.dedupBEq (ts ++ tf ++ cs)
+  | none => ts
+
 @[inline] def isPiSigmaDual (ts : List AtomicDecl) : Bool :=
   containsTF "Pi" ts && containsTF "Sigma" ts
 
@@ -591,6 +600,9 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   -- Does X open the next stratum? (used to expose hi-dim ctor neighbors + schema host term)
   let _opensJump := opensNewStratum B X.targets
 
+  let targetsCore := sealHITCoreNoElim cfg.actions X.targets
+  let host? := commonHost? targetsCore
+
   /- compute enumerators, action tweaks, and excludes based on X -/
   open PEN.Novelty.Enumerators in
   let actions' : List AtomicDecl :=
@@ -603,7 +615,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
     else if isClassifierTFSolo X.targets then
       cfg.actions
     else
-      match fullHitHost? with
+      match host? with
       | some h => actionsWithPiSigmaAliases cfg.actions h
       | none   => cfg.actions
 
@@ -621,12 +633,18 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
         actions')
 
   -- keep ctor neighborhoods in the actions menu (for κ computations)
-  let nbTerms   := neighborhoodTermsForCtors X.targets
+  let nbTerms   := neighborhoodTermsForCtors targetsCore
 
   -- include the jump extras also in the actions (so κ_post can be computed)
   let jumpExtras : List AtomicDecl :=
-    match fullHitHost? with
-    | some h => hiDimCtorNeighborhoods h X.targets ++ [schemaTermForHost h]
+    match host? with
+    | some h =>
+        let hi := hiDimCtorNeighborhoods h targetsCore
+        let schema :=
+          match fullHitHost? with
+          | some h' => if h' == h then [schemaTermForHost h] else []
+          | none    => []
+        hi ++ schema
     | none   => []
 
   let actions''' : List AtomicDecl :=
@@ -634,19 +652,19 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
 
   let exKeys :=
     PEN.Novelty.Scope.dedupBEq
-      (keysOfTargets X.targets ++ endoKeysForTFSet X.targets)
+      (keysOfTargets targetsCore ++ endoKeysForTFSet targetsCore)
 
   let sc : ScopeConfig :=
     { actions       := actions'''
       horizon       := noveltyH         -- fixed novelty gauge
       preMaxDepth?  := some noveltyH
       postMaxDepth? := some 1
-      exclude       := X.targets
+      exclude       := targetsCore
       excludeKeys   := exKeys }
-  let targetsSealed :=
-    sealPiSigmaTargets actions''' X.targets
+  let targetsFinal :=
+    sealPiSigmaTargets actions''' targetsCore
 
-  match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc (maxDepthX := H) with
+  match PEN.Novelty.Novelty.noveltyForPackage? B targetsFinal sc (maxDepthX := H) with
     | none => none
     | some rep0 => do
         let rep := rep0
