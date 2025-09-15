@@ -70,6 +70,14 @@ deriving Repr
         if acc.any (· == n) then acc else acc ++ [n]
     | _ => acc) []
 
+@[inline] def containsTF (nm : String) (ts : List AtomicDecl) : Bool :=
+  ts.any (fun a => match a with
+                   | .declareTypeFormer n => n == nm
+                   | _ => false)
+
+@[inline] def isPiSigmaDual (ts : List AtomicDecl) : Bool :=
+  containsTF "Pi" ts && containsTF "Sigma" ts
+
 /-! ############################
     Bounded search (IDDFS)
 ############################# -/
@@ -232,16 +240,24 @@ def noveltyForPackage?
   let goal := goalAll targets
   match iddfsMin sc.actions goal maxDepthX B with
   | none => none
-  | some (kX, post) =>
+  | some (kXraw, post) =>
     let es := frontierAllScoped B post sc
     let nuCore := PEN.Novelty.Scope.sumContribWithCaps post es
+
+    -- Axiom 2: sealed dual-package discount for Π/Σ
+    let kXsealed :=
+      if isPiSigmaDual targets then
+        let k' := if kXraw > 0 then kXraw - 1 else 0
+        Nat.max 3 k'
+      else
+        kXraw
 
     -- Axiom 3′: add +1 for each freshly introduced NON-classifier TF in X
     let freshTFs   := namesOfNewTypeFormers targets
     let freshNonCl := freshTFs.filter (fun T => not (PEN.Novelty.Scope.isClassifierTFName T))
     let tfBonus := freshNonCl.length
     let ν := nuCore + tfBonus
-    let ρ := if kX = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kX)
-    some { post := post, kX := kX, frontier := es, nuCore := nuCore, tfBonus := tfBonus, nu := ν, rho := ρ }
+    let ρ := if kXsealed = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kXsealed)
+    some { post := post, kX := kXsealed, frontier := es, nuCore := nuCore, tfBonus := tfBonus, nu := ν, rho := ρ }
 
 end PEN.Novelty.Novelty

@@ -398,6 +398,30 @@ deriving Repr
                    | .declareTypeFormer n => n == nm
                    | _ => false)
 
+@[inline] def isPiSigmaDual (ts : List AtomicDecl) : Bool :=
+  containsTF "Pi" ts && containsTF "Sigma" ts
+
+/-- Add a canonical (C,E,R) triple to seal Π/Σ (choose Π deterministically). -/
+@[inline] def sealPiSigmaTargets (actions : List AtomicDecl) (ts : List AtomicDecl) : List AtomicDecl :=
+  if isPiSigmaDual ts then
+    let ctor? : Option AtomicDecl :=
+      actions.find? (fun a => match a with
+                              | .declareConstructor c T => T == "Pi"
+                              | _ => false)
+    let elim? : Option AtomicDecl :=
+      actions.find? (fun a => match a with
+                              | .declareEliminator e T => T == "Pi"
+                              | _ => false)
+    let comp? : Option AtomicDecl :=
+      match elim?, ctor? with
+      | some (.declareEliminator e _), some (.declareConstructor c _) =>
+          some (AtomicDecl.declareCompRule e c)
+      | _, _ => none
+    let extras := [ctor?, elim?, comp?].filterMap id
+    PEN.Novelty.Scope.dedupBEq (ts ++ extras)
+  else
+    ts
+
 @[inline] def hasEndoTripleFor (host : String) (ts : List AtomicDecl) : Bool :=
   let elims := ts.foldl (fun acc a =>
     match a with
@@ -590,8 +614,10 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       postMaxDepth? := some 1
       exclude       := X.targets
       excludeKeys   := exKeys }
+  let targetsSealed :=
+    sealPiSigmaTargets actions''' X.targets
 
-  match PEN.Novelty.Novelty.noveltyForPackage? B X.targets sc (maxDepthX := H) with
+  match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc (maxDepthX := H) with
     | none => none
     | some rep0 => do
         let rep := rep0
@@ -805,8 +831,10 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
               postMaxDepth? := some 1
               exclude       := pkg.targets
               excludeKeys   := exKeys }
+          let targetsSealed :=
+            sealPiSigmaTargets actions' pkg.targets
 
-          match PEN.Novelty.Novelty.noveltyForPackage? B pkg.targets sc (maxDepthX := H) with
+          match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc (maxDepthX := H) with
           | none => none
           | some rep0 =>
               let rep := rep0
