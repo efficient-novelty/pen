@@ -208,7 +208,10 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
             let kPreEff := kappaTrunc sc.actions B Y preBudget
             acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
       []
-  reduceByKeyMaxGain post raw
+  let rawFiltered :=
+    if sc.exclude.isEmpty then raw
+    else raw.filter (fun e => dependsOnTargets e.target sc.exclude)
+  reduceByKeyMaxGain post rawFiltered
 
 
 
