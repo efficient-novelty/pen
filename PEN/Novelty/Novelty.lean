@@ -25,7 +25,7 @@ namespace PEN.Novelty.Novelty
 
 open PEN.CAD
 open PEN.Novelty.Scope
-open PEN.Select.Discover
+-- Avoid opening Discover to prevent clashes with helper names like `dedupBEq`.
 open AtomicDecl
 
 /-- What we report back to the engine after evaluating a package X. -/
@@ -87,7 +87,7 @@ deriving Repr
 @[inline] def commonHost? (ts : List AtomicDecl) : Option String :=
   let hosts :=
     ts.foldl (fun acc a =>
-      match hostOf a with
+      match PEN.Select.Discover.hostOf a with
       | some h => if acc.any (· == h) then acc else acc ++ [h]
       | none   => acc) []
   match hosts with
@@ -97,7 +97,9 @@ deriving Repr
 @[inline] def sealedNonClassifierHost? (targets : List AtomicDecl) : Option String :=
   match commonHost? targets with
   | some h =>
-      if not (PEN.Novelty.Scope.isClassifierTFName h) && isFullForHost targets h then some h else none
+      if not (PEN.Novelty.Scope.isClassifierTFName h)
+         && PEN.Select.Discover.isFullForHost targets h
+      then some h else none
   | none => none
 
 /-! ############################
@@ -173,7 +175,7 @@ def frontierAll (actions : List AtomicDecl)
     (exclude : List AtomicDecl) : List FrontierEntry :=
   let preBudget  := preMax?.getD H
   let postBudget := postMax?.getD H   -- NEW
-  let acts   := dedupBEq actions
+  let acts   := PEN.Novelty.Scope.dedupBEq actions
   let cands  := acts.filter (fun y => not (exclude.any (· == y)))
   -- Collect raw entries first …
   let raw : List FrontierEntry :=
@@ -224,8 +226,10 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
   let H          := sc.horizon
   let preBudget  := sc.preMaxDepth?.getD H
   let postBudget := sc.postMaxDepth?.getD H
-  let acts       := dedupBEq sc.actions
-  let cands      := acts.filter (fun y => (not (memBEq y sc.exclude)) && (not (hasKey sc.excludeKeys y)))
+  let acts       := PEN.Novelty.Scope.dedupBEq sc.actions
+  let cands      := acts.filter (fun y =>
+    (not (PEN.Novelty.Scope.memBEq y sc.exclude))
+    && (not (hasKey sc.excludeKeys y)))
   let raw : List FrontierEntry :=
     cands.foldl
       (fun acc Y =>
