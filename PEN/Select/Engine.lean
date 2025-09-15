@@ -875,12 +875,24 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
     else if !smallRadiusCapOK B H pkg.targets then
       none
     else
-      -- *** seal the targets before κ/ν ***
-      let targets0 := pkg.targets
-      let targetsCore := sealHITCoreNoElim pkg.actions targets0
-      let targets1 := sealHITTargets pkg.actions targets0
-      let targetsSealed := sealPiSigmaTargets pkg.actions targets1
-      let host? := commonHost? targetsCore
+      let host? := commonHost? pkg.targets
+      let goodBundle :=
+        match host? with
+        | some h =>
+            if looksLikeHITHost pkg.actions h then
+              !(allTFOnly pkg.targets) && isFullForHost pkg.targets h
+            else
+              sealedClassifierHost pkg.actions pkg.targets
+        | none => true
+      if !goodBundle then
+        none
+      else
+        -- *** seal the targets before κ/ν ***
+        let targets0 := pkg.targets
+        let targetsCore := sealHITCoreNoElim pkg.actions targets0
+        let targets1 := sealHITTargets pkg.actions targets0
+        let targetsSealed := sealPiSigmaTargets pkg.actions targets1
+        let host? := commonHost? targetsCore
       match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) pkg.actions H with
       | none => none
       | some (_kXcert, certX) =>
