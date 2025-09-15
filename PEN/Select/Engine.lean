@@ -398,6 +398,35 @@ deriving Repr
                    | .declareTypeFormer n => n == nm
                    | _ => false)
 
+@[inline] def pickFirstCtors (actions : List AtomicDecl) (h : String) (n : Nat) : List AtomicDecl :=
+  let ctors := actions.filter (fun a => match a with
+    | .declareConstructor _ T => T == h
+    | _ => false)
+  ctors.foldl (fun acc a => if acc.length < n && not (acc.any (· == a)) then acc ++ [a] else acc) []
+
+@[inline] def pickElimForHost? (actions : List AtomicDecl) (h : String) : Option AtomicDecl :=
+  actions.find? (fun a => match a with
+    | .declareEliminator _ T => T == h
+    | _ => false)
+
+/-- If `ts` names a non-classifier host and actions contain a plausible HIT
+    (≥2 ctors + an eliminator), augment `ts` to a *full/ sealed* HIT core:
+    TF(h) + two ctors + one eliminator (dedup). -/
+@[inline] def sealHITTargets (actions : List AtomicDecl) (ts : List AtomicDecl) : List AtomicDecl :=
+  match commonHost? ts with
+  | some h =>
+      if isClassifierTypeName h then
+        ts
+      else if looksLikeHITHost actions h then
+        let tf  := (if ts.any (isTFFor h) then [] else [AtomicDecl.declareTypeFormer h])
+        let cs  := pickFirstCtors actions h 2 |>.filter (fun c => not (ts.any (· == c)))
+        let el? := pickElimForHost? actions h
+        let el  := match el? with | some e => if ts.any (· == e) then [] else [e] | none => []
+        PEN.Novelty.Scope.dedupBEq (ts ++ tf ++ cs ++ el)
+      else
+        ts
+  | none => ts
+
 @[inline] def isPiSigmaDual (ts : List AtomicDecl) : Bool :=
   containsTF "Pi" ts && containsTF "Sigma" ts
 
@@ -776,7 +805,11 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
     else if !smallRadiusCapOK B H pkg.targets then
       none
     else
-      match PEN.CAD.kappaMin? B (goalAllTargets pkg.targets) pkg.actions H with
+      -- *** seal the targets before κ/ν ***
+      let targets0 := pkg.targets
+      let targets1 := sealHITTargets pkg.actions targets0
+      let targetsSealed := sealPiSigmaTargets pkg.actions targets1
+      match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) pkg.actions H with
       | none => none
       | some (_kXcert, certX) =>
         let foundationOK :=
@@ -784,20 +817,22 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             let ℓ := levelOfDecl levelEnv a
             (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1))
         if !foundationOK then none else
+          -- expose alias families around non-classifier host (as in discovery)
           let fullHitHost? : Option String :=
-            match commonHost? pkg.targets with
-            | some h => if isFullForHost pkg.targets h then some h else none
+            match commonHost? targetsSealed with
+            | some h => if isFullForHost targetsSealed h then some h else none
             | none   => none
-          let _opensJump := opensNewStratum B pkg.targets
+
+          let _opensJump := opensNewStratum B targetsSealed
           let jumpExtras : List AtomicDecl :=
             match fullHitHost? with
-            | some h => hiDimCtorNeighborhoods h pkg.targets ++ [schemaTermForHost h]
+            | some h => hiDimCtorNeighborhoods h targetsSealed ++ [schemaTermForHost h]
             | none   => []
 
           let xHasManPkg : Bool :=
-            pkg.targets.any (fun a => match a with
-                                      | .declareTypeFormer "Man" => true
-                                      | _ => false)
+            targetsSealed.any (fun a => match a with
+                                        | .declareTypeFormer "Man" => true
+                                        | _ => false)
 
           let actionsWithMaps : List AtomicDecl :=
             PEN.Novelty.Scope.dedupBEq (
@@ -806,33 +841,34 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
               else
                 pkg.actions)
 
+          -- *** NEW: add Π/Σ alias families around non-classifier hosts (parity with discovery) ***
           let actionsWithAliases : List AtomicDecl :=
-            if isPureClassifierTFSet pkg.targets then
-              let hasPiSigma := containsTF "Pi" pkg.targets && containsTF "Sigma" pkg.targets
-              if hasPiSigma && H ≥ 3 then
-                PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
-              else
-                actionsWithMaps
-            else
-              actionsWithMaps
+            match fullHitHost? with
+            | some h => actionsWithPiSigmaAliases actionsWithMaps h
+            | none   =>
+                if isPureClassifierTFSet targetsSealed then
+                  let hasPiSigma := containsTF "Pi" targetsSealed && containsTF "Sigma" targetsSealed
+                  if hasPiSigma && H ≥ 3 then
+                    PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
+                  else
+                    actionsWithMaps
+                else
+                  actionsWithMaps
 
-          let nbTerms := neighborhoodTermsForCtors pkg.targets
+          let nbTerms := neighborhoodTermsForCtors targetsSealed
           let actions' : List AtomicDecl :=
             PEN.Novelty.Scope.dedupBEq (actionsWithAliases ++ nbTerms ++ jumpExtras)
 
           let exKeys :=
-            PEN.Novelty.Scope.dedupBEq
-              (keysOfTargets pkg.targets ++ endoKeysForTFSet pkg.targets)
+            PEN.Novelty.Scope.dedupBEq (keysOfTargets targetsSealed ++ endoKeysForTFSet targetsSealed)
 
           let sc : ScopeConfig :=
             { actions       := actions'
               horizon       := noveltyH
               preMaxDepth?  := some noveltyH
               postMaxDepth? := some 1
-              exclude       := pkg.targets
+              exclude       := targetsSealed
               excludeKeys   := exKeys }
-          let targetsSealed :=
-            sealPiSigmaTargets actions' pkg.targets
 
           match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc (maxDepthX := H) with
           | none => none
