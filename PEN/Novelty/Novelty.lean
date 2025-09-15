@@ -19,11 +19,13 @@ import Init
 import PEN.CAD.Atoms
 import PEN.Novelty.Scope
 import PEN.CAD.Kappa
+import PEN.Select.Discover
 
 namespace PEN.Novelty.Novelty
 
 open PEN.CAD
 open PEN.Novelty.Scope
+open PEN.Select.Discover
 open AtomicDecl
 
 /-- What we report back to the engine after evaluating a package X. -/
@@ -81,6 +83,22 @@ deriving Repr
 @[inline] def liftForSealedDual (targets : List AtomicDecl) : Nat :=
   -- Π/Σ dual package: need +2 raw moves vs the sealed κ (see proof)
   if isPiSigmaDual targets then 2 else 0
+
+@[inline] def commonHost? (ts : List AtomicDecl) : Option String :=
+  let hosts :=
+    ts.foldl (fun acc a =>
+      match hostOf a with
+      | some h => if acc.any (· == h) then acc else acc ++ [h]
+      | none   => acc) []
+  match hosts with
+  | [h] => some h
+  | _   => none
+
+@[inline] def sealedNonClassifierHost? (targets : List AtomicDecl) : Option String :=
+  match commonHost? targets with
+  | some h =>
+      if not (PEN.Novelty.Scope.isClassifierTFName h) && isFullForHost targets h then some h else none
+  | none => none
 
 /-! ############################
     Bounded search (IDDFS)
@@ -256,7 +274,11 @@ def noveltyForPackage?
         let k' := kXraw - 2
         Nat.max 3 k'
       else
-        kXraw
+        match sealedNonClassifierHost? targets with
+        | some _ =>
+            let k' := kXraw - 1
+            Nat.max 3 k'
+        | none => kXraw
 
     -- Axiom 3′: add +1 for each freshly introduced NON-classifier TF in X
     let freshTFs   := namesOfNewTypeFormers targets
