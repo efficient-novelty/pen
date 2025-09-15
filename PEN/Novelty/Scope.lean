@@ -237,7 +237,7 @@ Axiom 3 schema keying:
       match x with
       | .declareTypeFormer T' => T == T'
       | .declareConstructor c' _ =>
-          match ctorNameFromTerm? nm with
+          match ctorNameOfNeighborhood? nm with
           | some c => c == c'
           | none   => false
       | _ => false
