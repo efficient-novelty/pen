@@ -307,11 +307,11 @@ def hasElim (T e : String) (as : List AtomicDecl) : Bool :=
 -- #eval hasElim "S1" "rec_S1" globalActions           -- expect: true
 -- #eval (elimGoalFor globalActions "S1").isSome       -- expect: true
 
-def demo_rows_21 : List String :=
-  let (_, rows) := runDiscoverNTicksWithLedger dcfg st0 21
+def demo_rows (n_rows : Nat) : List String :=
+  let (_, rows) := runDiscoverNTicksWithLedger dcfg st0 n_rows
   rows.map fmt
 
-#eval demo_rows_21
+
 -- #eval manMapDecls8.length   -- expect 8
 
 -- #eval
@@ -391,10 +391,10 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
    evalsSorted.map (fun e =>
      s!"ρ={e.report.rho}  κ={e.report.kX}  ν={e.report.nu}  Δ={e.report.rho - bar}   X={nameOfX e.x.targets}"))
 
-/- One-shot dump at τ=21. -/
-def demo_dumpAllCandidatesAt_21 : List String :=
-  dumpAllCandidatesAt 21
 
-#eval dumpAllCandidatesAt 5
+ #eval demo_rows 3
+-- #eval dumpAllCandidatesAt 1
+-- #eval dumpAllCandidatesAt 2
+-- #eval dumpAllCandidatesAt 3
 
 end PEN.Genesis
