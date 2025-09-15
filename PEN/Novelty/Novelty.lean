@@ -78,6 +78,10 @@ deriving Repr
 @[inline] def isPiSigmaDual (ts : List AtomicDecl) : Bool :=
   containsTF "Pi" ts && containsTF "Sigma" ts
 
+@[inline] def liftForSealedDual (targets : List AtomicDecl) : Nat :=
+  -- Π/Σ dual package: need +2 raw moves vs the sealed κ (see proof)
+  if isPiSigmaDual targets then 2 else 0
+
 /-! ############################
     Bounded search (IDDFS)
 ############################# -/
@@ -238,7 +242,9 @@ def noveltyForPackage?
     (maxDepthX : Nat := sc.horizon) : Option NoveltyReport :=
 
   let goal := goalAll targets
-  match iddfsMin sc.actions goal maxDepthX B with
+  -- NEW: lift raw search budget for sealed Π/Σ
+  let rawBound := maxDepthX + liftForSealedDual targets
+  match iddfsMin sc.actions goal rawBound B with
   | none => none
   | some (kXraw, post) =>
     let es := frontierAllScoped B post sc
@@ -247,7 +253,7 @@ def noveltyForPackage?
     -- Axiom 2: sealed dual-package discount for Π/Σ
     let kXsealed :=
       if isPiSigmaDual targets then
-        let k' := if kXraw > 0 then kXraw - 1 else 0
+        let k' := kXraw - 2
         Nat.max 3 k'
       else
         kXraw
