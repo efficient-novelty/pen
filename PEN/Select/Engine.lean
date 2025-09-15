@@ -306,6 +306,26 @@ open PEN.Select.Discover  -- for `hostOf`
                        | _ => false)
   (decide (2 ≤ ctorCount)) && hasElim
 
+@[inline] def ctorNamesFor (actions : List AtomicDecl) (h : String) : List String :=
+  actions.foldl (fun acc a =>
+    match a with
+    | .declareConstructor c T =>
+        if T == h then if acc.any (· == c) then acc else acc ++ [c] else acc
+    | _ => acc) []
+
+@[inline] def extraSuppressForTFSoloNonHIT
+  (actions : List AtomicDecl) (h : String) : List PEN.Novelty.Scope.FrontierKey :=
+  if looksLikeHITHost actions h then [] else
+    let cs := ctorNamesFor actions h
+    let nbs :=
+      cs.bind (fun c =>
+        [ PEN.Novelty.Scope.FrontierKey.termExact h s!"refl_{c}"
+        , PEN.Novelty.Scope.FrontierKey.termExact h s!"transport_{c}" ])
+    [ PEN.Novelty.Scope.FrontierKey.term h
+    , PEN.Novelty.Scope.FrontierKey.termExact h "alias_Pi_family"
+    , PEN.Novelty.Scope.FrontierKey.termExact h "alias_Sigma_family"
+    ] ++ nbs
+
 
 @[inline] def foundationOKForTargets
   (levelEnv : LevelEnv) (Lstar : Nat) (steps targets : List AtomicDecl) : Bool :=
@@ -431,8 +451,12 @@ deriving Repr
   match commonHost? ts with
   | some h =>
       if isClassifierTypeName h then ts else
-      let tf  := (if ts.any (isTFFor h) then [] else [AtomicDecl.declareTypeFormer h])
-      let cs  := pickFirstCtors actions h 2 |>.filter (fun c => not (ts.any (· == c)))
+      let tf := (if ts.any (isTFFor h) then [] else [AtomicDecl.declareTypeFormer h])
+      let cs :=
+        if looksLikeHITHost actions h then
+          pickFirstCtors actions h 2 |>.filter (fun c => not (ts.any (· == c)))
+        else
+          []
       PEN.Novelty.Scope.dedupBEq (ts ++ tf ++ cs)
   | none => ts
 
@@ -616,7 +640,11 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
       cfg.actions
     else
       match host? with
-      | some h => actionsWithPiSigmaAliases cfg.actions h
+      | some h =>
+          if looksLikeHITHost cfg.actions h then
+            actionsWithPiSigmaAliases cfg.actions h
+          else
+            cfg.actions
       | none   => cfg.actions
 
   -- If this X contains Man, only expose the 8 Man maps once S¹ is already in B.
@@ -650,9 +678,30 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   let actions''' : List AtomicDecl :=
     PEN.Novelty.Scope.dedupBEq (actions'' ++ nbTerms ++ jumpExtras)
 
+  let xIsTFSolo := PEN.Novelty.Scope.allTFOnly targetsCore
+  let hostSuppress :=
+    match host? with
+    | some h => if xIsTFSolo then extraSuppressForTFSoloNonHIT cfg.actions h else []
+    | none   => []
+
+  let wantsCtor := X.targets.any (fun a => match a with | .declareConstructor _ _ => true | _ => false)
+  let wantsElim := X.targets.any (fun a => match a with | .declareEliminator _ _ => true | _ => false)
+  let elimSuppress :=
+    match host? with
+    | some h =>
+        if wantsCtor && !wantsElim then
+          [ PEN.Novelty.Scope.FrontierKey.elim h
+          , PEN.Novelty.Scope.FrontierKey.compElim s!"rec_{h}" ]
+        else
+          []
+    | none => []
+
   let exKeys :=
     PEN.Novelty.Scope.dedupBEq
-      (keysOfTargets targetsCore ++ endoKeysForTFSet targetsCore)
+      (keysOfTargets targetsCore
+       ++ endoKeysForTFSet targetsCore
+       ++ hostSuppress
+       ++ elimSuppress)
 
   let sc : ScopeConfig :=
     { actions       := actions'''
@@ -825,8 +874,10 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
     else
       -- *** seal the targets before κ/ν ***
       let targets0 := pkg.targets
+      let targetsCore := sealHITCoreNoElim pkg.actions targets0
       let targets1 := sealHITTargets pkg.actions targets0
       let targetsSealed := sealPiSigmaTargets pkg.actions targets1
+      let host? := commonHost? targetsCore
       match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) pkg.actions H with
       | none => none
       | some (_kXcert, certX) =>
@@ -877,8 +928,30 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
           let actions' : List AtomicDecl :=
             PEN.Novelty.Scope.dedupBEq (actionsWithAliases ++ nbTerms ++ jumpExtras)
 
+          let xIsTFSolo := PEN.Novelty.Scope.allTFOnly targetsCore
+          let hostSuppress :=
+            match host? with
+            | some h => if xIsTFSolo then extraSuppressForTFSoloNonHIT pkg.actions h else []
+            | none   => []
+
+          let wantsCtor := pkg.targets.any (fun a => match a with | .declareConstructor _ _ => true | _ => false)
+          let wantsElim := pkg.targets.any (fun a => match a with | .declareEliminator _ _ => true | _ => false)
+          let elimSuppress :=
+            match host? with
+            | some h =>
+                if wantsCtor && !wantsElim then
+                  [ PEN.Novelty.Scope.FrontierKey.elim h
+                  , PEN.Novelty.Scope.FrontierKey.compElim s!"rec_{h}" ]
+                else
+                  []
+            | none => []
+
           let exKeys :=
-            PEN.Novelty.Scope.dedupBEq (keysOfTargets targetsSealed ++ endoKeysForTFSet targetsSealed)
+            PEN.Novelty.Scope.dedupBEq
+              (keysOfTargets targetsSealed
+               ++ endoKeysForTFSet targetsSealed
+               ++ hostSuppress
+               ++ elimSuppress)
 
           let sc : ScopeConfig :=
             { actions       := actions'

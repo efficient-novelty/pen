@@ -284,10 +284,8 @@ def noveltyForPackage?
             Nat.max 3 k'
         | none => kXraw
 
-    -- Axiom 3′: add +1 for each freshly introduced NON-classifier TF in X
-    let freshTFs   := namesOfNewTypeFormers targets
-    let freshNonCl := freshTFs.filter (fun T => not (PEN.Novelty.Scope.isClassifierTFName T))
-    let tfBonus := freshNonCl.length
+    -- Axiom 3′: TF-only packages earn a +1 bonus
+    let tfBonus := if PEN.Novelty.Scope.allTFOnly targets then 1 else 0
     let ν := nuCore + tfBonus
     let ρ := if kXsealed = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kXsealed)
     some { post := post, kX := kXsealed, frontier := es, nuCore := nuCore, tfBonus := tfBonus, nu := ν, rho := ρ }
