@@ -527,7 +527,7 @@ structure DiscoverConfig where
   barMode : BarMode := .twoTap
   actions : List AtomicDecl := []   -- global finite menu for search/novelty
   eps     : Float := 1e-9
-  debugFrontier : Bool := true
+  debugFrontier : Bool := false
   schedule : Schedule := .none
 deriving Repr, Inhabited
 
