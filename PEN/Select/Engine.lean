@@ -318,9 +318,12 @@ open PEN.Select.Discover  -- for `hostOf`
   if looksLikeHITHost actions h then [] else
     let cs := ctorNamesFor actions h
     let nbs :=
-      cs.bind (fun c =>
-        [ PEN.Novelty.Scope.FrontierKey.termExact h s!"refl_{c}"
-        , PEN.Novelty.Scope.FrontierKey.termExact h s!"transport_{c}" ])
+      cs.foldl
+        (fun acc c =>
+          acc ++
+            [ PEN.Novelty.Scope.FrontierKey.termExact h s!"refl_{c}"
+            , PEN.Novelty.Scope.FrontierKey.termExact h s!"transport_{c}" ])
+        []
     [ PEN.Novelty.Scope.FrontierKey.term h
     , PEN.Novelty.Scope.FrontierKey.termExact h "alias_Pi_family"
     , PEN.Novelty.Scope.FrontierKey.termExact h "alias_Sigma_family"
