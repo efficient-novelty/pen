@@ -434,6 +434,33 @@ deriving Repr
       (¬ isClassifierHost h) && isFullForHost ts h && (Lx = Lstar + 1)
   | none => false
 
+@[inline] def newTFNamesInTargets (B : Context) (ts : List AtomicDecl) : List String :=
+  ts.foldl (fun acc a =>
+    match a with
+    | .declareTypeFormer n =>
+        if B.hasTypeFormer n || acc.any (· == n) then acc else acc ++ [n]
+    | _ => acc) []
+
+@[inline] def newCtorCountInTargets (B : Context) (ts : List AtomicDecl) : Nat :=
+  ts.foldl (fun s a =>
+    s + match a with
+        | .declareConstructor c T => if B.hasConstructor c T then 0 else 1
+        | _ => 0) 0
+
+/-- Axiom‑3 small‑radius guard:
+    At H ≤ 2, forbid multi‑host TF‑only bundles (≥2 new hosts),
+    forbid >1 new constructor, and forbid mixing host+ctor in one go. -/
+@[inline] def smallRadiusCapOK (B : Context) (H : Nat) (ts : List AtomicDecl) : Bool :=
+  if H ≤ 2 then
+    let nHosts := (newTFNamesInTargets B ts).length
+    let nCtors := newCtorCountInTargets B ts
+    let tfOnly := allTFOnly ts
+    let noMultiHost := !(tfOnly && nHosts ≥ 2)
+    let noCtorBurst := nCtors ≤ 1
+    let noMix       := !(nHosts = 1 && nCtors = 1)
+    noMultiHost && noCtorBurst && noMix
+  else true
+
 
 /- ============================================================================
   === DISCOVERY MODE: select winners from automatically discovered X’s ===
@@ -516,7 +543,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
   let actions' : List AtomicDecl :=
     if isPureClassifierTFSet X.targets then
       let hasPiSigma := containsTF "Pi" X.targets && containsTF "Sigma" X.targets
-      if hasPiSigma then
+      if hasPiSigma && H ≥ 3 then
         PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
       else
         cfg.actions
@@ -656,6 +683,7 @@ def tickDiscover (cfg : DiscoverConfig) (st : EngineState) : XTickResult :=
     let Lstar := contextLevel levelEnv st.B
 let admissible : List DiscoveredX :=
   XsPhase.filter (fun X =>
+    smallRadiusCapOK st.B H X.targets &&
     let Lx := targetLevel levelEnv X.targets
     let foundationOK := foundationOKForTargets levelEnv Lstar X.steps X.targets
     let goodBundle :=
@@ -719,6 +747,8 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
       none
     else if H < pkg.minH then
       none
+    else if !smallRadiusCapOK B H pkg.targets then
+      none
     else
       match PEN.CAD.kappaMin? B (goalAllTargets pkg.targets) pkg.actions H with
       | none => none
@@ -750,9 +780,19 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
               else
                 pkg.actions)
 
+          let actionsWithAliases : List AtomicDecl :=
+            if isPureClassifierTFSet pkg.targets then
+              let hasPiSigma := containsTF "Pi" pkg.targets && containsTF "Sigma" pkg.targets
+              if hasPiSigma && H ≥ 3 then
+                PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
+              else
+                actionsWithMaps
+            else
+              actionsWithMaps
+
           let nbTerms := neighborhoodTermsForCtors pkg.targets
           let actions' : List AtomicDecl :=
-            PEN.Novelty.Scope.dedupBEq (actionsWithMaps ++ nbTerms ++ jumpExtras)
+            PEN.Novelty.Scope.dedupBEq (actionsWithAliases ++ nbTerms ++ jumpExtras)
 
           let exKeys :=
             PEN.Novelty.Scope.dedupBEq
