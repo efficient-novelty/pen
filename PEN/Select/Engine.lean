@@ -444,7 +444,7 @@ deriving Repr
 @[inline] def newCtorCountInTargets (B : Context) (ts : List AtomicDecl) : Nat :=
   ts.foldl (fun s a =>
     s + match a with
-        | .declareConstructor c T => if B.hasConstructor c T then 0 else 1
+        | .declareConstructor c _ => if B.hasConstructor c then 0 else 1
         | _ => 0) 0
 
 /-- Axiom‑3 small‑radius guard:
@@ -526,7 +526,7 @@ def pruneAfterAccept (accepted : List XOutcome) : List XOutcome :=
 def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : DiscoveredX)
   : Option XOutcome :=
   /- classify the bundle X -/
-  let isUnitSingleton : Bool :=
+  let _isUnitSingleton : Bool :=
     X.targets.length = 1 && X.targets.any isUnitTF
 
   /- full HIT host if X contains TF + ≥ 2 ctors + elim for the same host -/
@@ -536,7 +536,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
     | none   => none
 
   -- Does X open the next stratum? (used to expose hi-dim ctor neighbors + schema host term)
-  let opensJump := opensNewStratum B X.targets
+  let _opensJump := opensNewStratum B X.targets
 
   /- compute enumerators, action tweaks, and excludes based on X -/
   open PEN.Novelty.Enumerators in
@@ -762,7 +762,7 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             match commonHost? pkg.targets with
             | some h => if isFullForHost pkg.targets h then some h else none
             | none   => none
-          let opensJump := opensNewStratum B pkg.targets
+          let _opensJump := opensNewStratum B pkg.targets
           let jumpExtras : List AtomicDecl :=
             match fullHitHost? with
             | some h => hiDimCtorNeighborhoods h pkg.targets ++ [schemaTermForHost h]
