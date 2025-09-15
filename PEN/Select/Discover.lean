@@ -189,30 +189,33 @@ def pickCanonicalDecorator {B : Context} (ss : List (Seed B)) (host : String) : 
   and certify the union of their deltas within H. Names are not hardcoded.
 -/
 def discoverTFPairBundles (B : Context) (H : Nat) (actions : List AtomicDecl) : List DiscoveredX :=
-  let ss := seeds B H actions
-  let tfSeeds :=
-    ss.filter (fun s => match s.goal with | .declareTypeFormer n => isClassifier n | _ => false)
-  let rec pairs (xs : List (Seed B)) : List ((Seed B) × (Seed B)) :=
-    match xs with | [] => [] | x :: xr => (xr.map (fun y => (x, y))) ++ pairs xr
-  (pairs tfSeeds).foldl
-    (fun acc (s₁, s₂) =>
-      let ts : List AtomicDecl := dedupBEq (s₁.delta ++ s₂.delta)   -- keep the pair pure
-      match PEN.CAD.kappaMin? B (goalAllTargets ts) actions H with
-      | some (_k, cert) =>
-          let X := deltaTargets B cert.deriv
-          if X.isEmpty then acc else
-          match applyAll? B X with
-          | some postX =>
-              if acc.any (fun d => d.targets == X) then acc else
-              acc ++ [{
-                targets := X,
-                post    := postX,   -- recomputed from delta only
-                kX      := X.length,
-                steps   := X        -- audit exactly what we install
-              }]
-          | none => acc
-      | none => acc)
-    []
+  if H ≤ 2 then
+    []    -- small‑radius: forbid multi‑host TF‑only bundles
+  else
+    let ss := seeds B H actions
+    let tfSeeds :=
+      ss.filter (fun s => match s.goal with | .declareTypeFormer n => isClassifier n | _ => false)
+    let rec pairs (xs : List (Seed B)) : List ((Seed B) × (Seed B)) :=
+      match xs with | [] => [] | x :: xr => (xr.map (fun y => (x, y))) ++ pairs xr
+    (pairs tfSeeds).foldl
+      (fun acc (s₁, s₂) =>
+        let ts : List AtomicDecl := dedupBEq (s₁.delta ++ s₂.delta)   -- keep the pair pure
+        match PEN.CAD.kappaMin? B (goalAllTargets ts) actions H with
+        | some (_k, cert) =>
+            let X := deltaTargets B cert.deriv
+            if X.isEmpty then acc else
+            match applyAll? B X with
+            | some postX =>
+                if acc.any (fun d => d.targets == X) then acc else
+                acc ++ [{
+                  targets := X,
+                  post    := postX,   -- recomputed from delta only
+                  kX      := X.length,
+                  steps   := X        -- audit exactly what we install
+                }]
+            | none => acc
+        | none => acc)
+      []
 
 
 
