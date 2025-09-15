@@ -187,6 +187,39 @@ Axiom 3 schema keying:
 @[inline] def hasKey (ks : List FrontierKey) (t : Target) : Bool :=
   ks.any (· == keyOfTarget t)
 
+@[inline] def declDependsOn (y x : AtomicDecl) : Bool :=
+  match y with
+  | .declareUniverse _ => false
+  | .declareTypeFormer _ =>
+      match x with
+      | .declareUniverse _ => true
+      | _                  => false
+  | .declareConstructor _ T =>
+      match x with
+      | .declareTypeFormer T' => T == T'
+      | .declareUniverse _    => false
+      | _                     => false
+  | .declareEliminator _ T =>
+      match x with
+      | .declareTypeFormer T' => T == T'
+      | _                     => false
+  | .declareCompRule e c =>
+      match x with
+      | .declareEliminator e' _ => e == e'
+      | .declareConstructor c' _ => c == c'
+      | _ => false
+  | .declareTerm nm T =>
+      match x with
+      | .declareTypeFormer T' => T == T'
+      | .declareConstructor c' _ =>
+          match ctorNameFromTerm? nm with
+          | some c => c == c'
+          | none   => false
+      | _ => false
+
+@[inline] def dependsOnTargets (y : Target) (xs : List Target) : Bool :=
+  xs.any (declDependsOn y)
+
 /-- Deduplicate frontier entries by `FrontierKey` (keep the first representative). -/
 def dedupFrontierByKey (es : List FrontierEntry) : List FrontierEntry :=
   es.foldl
@@ -295,8 +328,11 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
     ts.foldl
       (fun acc t => match goTarget t with | some e => acc ++ [e] | none => acc)
       []
+  let rawFiltered :=
+    if cfg.exclude.isEmpty then raw
+    else raw.filter (fun e => dependsOnTargets e.target cfg.exclude)
 
-  let raw' := raw.filter (fun e => not (hasKey cfg.excludeKeys e.target))
+  let raw' := rawFiltered.filter (fun e => not (hasKey cfg.excludeKeys e.target))
   -- schema collapse (your Axiom‑3 keying)
   dedupFrontierByKey raw'
 
@@ -408,11 +444,15 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
     | some (kPost, _) => some kPost
     | none            => none
 
-  let postKappaOK : List (Target × FrontierKey × Nat) :=
+  let postKappaOK0 : List (Target × FrontierKey × Nat) :=
     ts.foldl (fun acc t =>
       match goPost t with
       | some k => acc ++ [(t, keyOfTarget t, k)]
       | none   => acc) []
+
+  let postKappaOK : List (Target × FrontierKey × Nat) :=
+    if cfg.exclude.isEmpty then postKappaOK0
+    else postKappaOK0.filter (fun (t, _, _) => dependsOnTargets t cfg.exclude)
 
   let postKappaFail : List (Target × FrontierKey) :=
     ts.filter (fun t => match goPost t with | some _ => false | none => true)
