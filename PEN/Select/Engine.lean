@@ -875,69 +875,71 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
     else if !smallRadiusCapOK B H pkg.targets then
       none
     else
-      let host? := commonHost? pkg.targets
+      -- *** seal the targets before κ/ν ***
+      let targets0 := pkg.targets
+      let targetsCore := sealHITCoreNoElim pkg.actions targets0
+      let targets1 := sealHITTargets pkg.actions targets0
+      let targetsSealed := sealPiSigmaTargets pkg.actions targets1
+
+      -- *** gate AFTER sealing ***
       let goodBundle :=
-        match host? with
+        match commonHost? targetsSealed with
         | some h =>
-            if looksLikeHITHost pkg.actions h then
-              !(allTFOnly pkg.targets) && isFullForHost pkg.targets h
+            if isClassifierTypeName h then
+              sealedClassifierHost pkg.actions targetsSealed
             else
-              sealedClassifierHost pkg.actions pkg.targets
+              isFullForHost targetsSealed h
         | none => true
+
       if !goodBundle then
         none
       else
-        -- *** seal the targets before κ/ν ***
-        let targets0 := pkg.targets
-        let targetsCore := sealHITCoreNoElim pkg.actions targets0
-        let targets1 := sealHITTargets pkg.actions targets0
-        let targetsSealed := sealPiSigmaTargets pkg.actions targets1
         let host? := commonHost? targetsCore
-      match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) pkg.actions H with
-      | none => none
-      | some (_kXcert, certX) =>
-        let foundationOK :=
-          certX.deriv.all (fun a =>
-            let ℓ := levelOfDecl levelEnv a
-            (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1))
-        if !foundationOK then none else
-          -- expose alias families around non-classifier host (as in discovery)
-          let fullHitHost? : Option String :=
-            match commonHost? targetsSealed with
-            | some h => if isFullForHost targetsSealed h then some h else none
-            | none   => none
+        match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) pkg.actions H with
+        | none => none
+        | some (_kXcert, certX) =>
+          let foundationOK :=
+            certX.deriv.all (fun a =>
+              let ℓ := levelOfDecl levelEnv a
+              (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1))
+          if !foundationOK then none else
+            -- expose alias families around non-classifier host (as in discovery)
+            let fullHitHost? : Option String :=
+              match commonHost? targetsSealed with
+              | some h => if isFullForHost targetsSealed h then some h else none
+              | none   => none
 
-          let _opensJump := opensNewStratum B targetsSealed
-          let jumpExtras : List AtomicDecl :=
-            match fullHitHost? with
-            | some h => hiDimCtorNeighborhoods h targetsSealed ++ [schemaTermForHost h]
-            | none   => []
+            let _opensJump := opensNewStratum B targetsSealed
+            let jumpExtras : List AtomicDecl :=
+              match fullHitHost? with
+              | some h => hiDimCtorNeighborhoods h targetsSealed ++ [schemaTermForHost h]
+              | none   => []
 
-          let xHasManPkg : Bool :=
-            targetsSealed.any (fun a => match a with
-                                        | .declareTypeFormer "Man" => true
-                                        | _ => false)
+            let xHasManPkg : Bool :=
+              targetsSealed.any (fun a => match a with
+                                          | .declareTypeFormer "Man" => true
+                                          | _ => false)
 
-          let actionsWithMaps : List AtomicDecl :=
-            PEN.Novelty.Scope.dedupBEq (
-              if xHasManPkg && B.hasTypeFormer "S1" then
-                actionsWithClassifierMapTerms pkg.actions "Man"
-              else
-                pkg.actions)
+            let actionsWithMaps : List AtomicDecl :=
+              PEN.Novelty.Scope.dedupBEq (
+                if xHasManPkg && B.hasTypeFormer "S1" then
+                  actionsWithClassifierMapTerms pkg.actions "Man"
+                else
+                  pkg.actions)
 
-          -- *** NEW: add Π/Σ alias families around non-classifier hosts (parity with discovery) ***
-          let actionsWithAliases : List AtomicDecl :=
-            match fullHitHost? with
-            | some h => actionsWithPiSigmaAliases actionsWithMaps h
-            | none   =>
-                if isPureClassifierTFSet targetsSealed then
-                  let hasPiSigma := containsTF "Pi" targetsSealed && containsTF "Sigma" targetsSealed
-                  if hasPiSigma && H ≥ 3 then
-                    PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
+            -- *** NEW: add Π/Σ alias families around non-classifier hosts (parity with discovery) ***
+            let actionsWithAliases : List AtomicDecl :=
+              match fullHitHost? with
+              | some h => actionsWithPiSigmaAliases actionsWithMaps h
+              | none   =>
+                  if isPureClassifierTFSet targetsSealed then
+                    let hasPiSigma := containsTF "Pi" targetsSealed && containsTF "Sigma" targetsSealed
+                    if hasPiSigma && H ≥ 3 then
+                      PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
+                    else
+                      actionsWithMaps
                   else
                     actionsWithMaps
-                else
-                  actionsWithMaps
 
           let nbTerms := neighborhoodTermsForCtors targetsSealed
           let actions' : List AtomicDecl :=
