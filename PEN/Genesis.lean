@@ -392,7 +392,7 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
      s!"ρ={e.report.rho}  κ={e.report.kX}  ν={e.report.nu}  Δ={e.report.rho - bar}   X={nameOfX e.x.targets}"))
 
 
--- #eval demo_rows 8
+#eval demo_rows 8
 -- #eval dumpAllCandidatesAt 3
 -- #eval dumpAllCandidatesAt 2
 #eval dumpAllCandidatesAt 8
