@@ -18,6 +18,7 @@ import Init
 import PEN.CAD.Atoms
 import PEN.CAD.Derivation
 import PEN.CAD.Kappa
+import PEN.Novelty.Scope
 
 namespace PEN.Select.Discover
 
@@ -69,7 +70,7 @@ deriving Repr
   | _                    => false
 
 @[inline] def isClassifier (s : String) : Bool :=
-  s == "Pi" || s == "Sigma" || s == "Man"
+  PEN.Novelty.Scope.isClassifierTFName s
 
 @[inline] def containsTF (nm : String) (ts : List AtomicDecl) : Bool :=
   ts.any (fun a => match a with

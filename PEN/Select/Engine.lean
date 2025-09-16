@@ -205,7 +205,7 @@ def isFib (n : Nat) : Bool :=
 
 
 @[inline] def isClassifierTypeName (s : String) : Bool :=
-  levelOfType levelEnv s = 1   -- Pi/Sigma/Man ↦ 1
+  PEN.Novelty.Scope.isClassifierTFName s
 
 @[inline] def compRulesForElimsIn
   (actions : List AtomicDecl) (elims : List AtomicDecl) : List AtomicDecl :=
@@ -262,7 +262,7 @@ open PEN.Select.Discover  -- for `hostOf`
 
 
 @[inline] def isClassifierTFDecl : AtomicDecl → Bool
-  | .declareTypeFormer n => isClassifierTypeName n
+  | .declareTypeFormer n => PEN.Novelty.Scope.isClassifierTFName n
   | _ => false
 
 @[inline] def isPureClassifierTFSet (ts : List AtomicDecl) : Bool :=
@@ -414,7 +414,7 @@ deriving Repr
   allTFOnly ts && (ts.filter isClassifierTFDecl).length = 1
 
 @[inline] def isClassifierHost (h : String) : Bool :=
-  isClassifierTypeName h   -- Π, Σ, Man live at the classifier level
+  PEN.Novelty.Scope.isClassifierTFName h   -- Π, Σ, Man live at the classifier level
 
 @[inline] def containsTF (nm : String) (ts : List AtomicDecl) : Bool :=
   ts.any (fun a => match a with
@@ -819,7 +819,7 @@ let admissible : List DiscoveredX :=
           else
             -- Classifiers (Π, Σ, Man): must be sealed (elim + schema_*).
             sealedClassifierHost cfg.actions X.targets
-      | none => true
+      | none => allTFOnly X.targets
 
     (Lx ≤ Lstar + 1) && foundationOK && goodBundle)
     -- score
