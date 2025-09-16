@@ -523,6 +523,9 @@ deriving Repr
       (¬ isClassifierHost h) && isFullForHost ts h && (Lx = Lstar + 1)
   | none => false
 
+@[inline] def allUniversesOnly (ts : List AtomicDecl) : Bool :=
+  ts.all (fun a => match a with | .declareUniverse _ => true | _ => false)
+
 @[inline] def newTFNamesInTargets (B : Context) (ts : List AtomicDecl) : List String :=
   ts.foldl (fun acc a =>
     match a with
@@ -819,7 +822,7 @@ let admissible : List DiscoveredX :=
           else
             -- Classifiers (Π, Σ, Man): must be sealed (elim + schema_*).
             sealedClassifierHost cfg.actions X.targets
-      | none => allTFOnly X.targets
+      | none => allTFOnly X.targets || allUniversesOnly X.targets
 
     (Lx ≤ Lstar + 1) && foundationOK && goodBundle)
     -- score
