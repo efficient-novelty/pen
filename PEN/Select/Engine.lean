@@ -895,7 +895,50 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
         none
       else
         let host? := commonHost? targetsCore
-        match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) pkg.actions H with
+
+        -- Build the EXACT action alphabet we’ll also use for novelty
+        let fullHitHost? : Option String :=
+          match commonHost? targetsSealed with
+          | some h => if isFullForHost targetsSealed h then some h else none
+          | none   => none
+
+        let _opensJump := opensNewStratum B targetsSealed
+        let jumpExtras : List AtomicDecl :=
+          match fullHitHost? with
+          | some h => hiDimCtorNeighborhoods h targetsSealed ++ [schemaTermForHost h]
+          | none   => []
+
+        let xHasManPkg : Bool :=
+          targetsSealed.any (fun a => match a with
+                                      | .declareTypeFormer "Man" => true
+                                      | _ => false)
+
+        let actionsWithMaps : List AtomicDecl :=
+          PEN.Novelty.Scope.dedupBEq (
+            if xHasManPkg && B.hasTypeFormer "S1" then
+              actionsWithClassifierMapTerms pkg.actions "Man"
+            else
+              pkg.actions)
+
+        let actionsWithAliases : List AtomicDecl :=
+          match fullHitHost? with
+          | some h => actionsWithPiSigmaAliases actionsWithMaps h
+          | none   =>
+              if isPureClassifierTFSet targetsSealed then
+                let hasPiSigma := containsTF "Pi" targetsSealed && containsTF "Sigma" targetsSealed
+                if hasPiSigma && H ≥ 3 then
+                  PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
+                else
+                  actionsWithMaps
+              else
+                actionsWithMaps
+
+        let nbTerms   := neighborhoodTermsForCtors targetsSealed
+        let actionsAug : List AtomicDecl :=
+          PEN.Novelty.Scope.dedupBEq (actionsWithAliases ++ nbTerms ++ jumpExtras)
+
+        -- *** Use the SAME alphabet for κ-admissibility ***
+        match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) actionsAug H with
         | none => none
         | some (_kXcert, certX) =>
           let foundationOK :=
@@ -903,88 +946,46 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
               let ℓ := levelOfDecl levelEnv a
               (ℓ == Lstar) || (Lstar > 0 && ℓ == Lstar - 1))
           if !foundationOK then none else
-            -- expose alias families around non-classifier host (as in discovery)
-            let fullHitHost? : Option String :=
-              match commonHost? targetsSealed with
-              | some h => if isFullForHost targetsSealed h then some h else none
-              | none   => none
-
-            let _opensJump := opensNewStratum B targetsSealed
-            let jumpExtras : List AtomicDecl :=
-              match fullHitHost? with
-              | some h => hiDimCtorNeighborhoods h targetsSealed ++ [schemaTermForHost h]
+            let xIsTFSolo := PEN.Novelty.Scope.allTFOnly targetsCore
+            let hostSuppress :=
+              match host? with
+              | some h => if xIsTFSolo then extraSuppressForTFSoloNonHIT pkg.actions h else []
               | none   => []
 
-            let xHasManPkg : Bool :=
-              targetsSealed.any (fun a => match a with
-                                          | .declareTypeFormer "Man" => true
-                                          | _ => false)
-
-            let actionsWithMaps : List AtomicDecl :=
-              PEN.Novelty.Scope.dedupBEq (
-                if xHasManPkg && B.hasTypeFormer "S1" then
-                  actionsWithClassifierMapTerms pkg.actions "Man"
-                else
-                  pkg.actions)
-
-            -- *** NEW: add Π/Σ alias families around non-classifier hosts (parity with discovery) ***
-            let actionsWithAliases : List AtomicDecl :=
-              match fullHitHost? with
-              | some h => actionsWithPiSigmaAliases actionsWithMaps h
-              | none   =>
-                  if isPureClassifierTFSet targetsSealed then
-                    let hasPiSigma := containsTF "Pi" targetsSealed && containsTF "Sigma" targetsSealed
-                    if hasPiSigma && H ≥ 3 then
-                      PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
-                    else
-                      actionsWithMaps
+            let wantsCtor := pkg.targets.any (fun a => match a with | .declareConstructor _ _ => true | _ => false)
+            let wantsElim := pkg.targets.any (fun a => match a with | .declareEliminator _ _ => true | _ => false)
+            let elimSuppress :=
+              match host? with
+              | some h =>
+                  if wantsCtor && !wantsElim then
+                    [ PEN.Novelty.Scope.FrontierKey.elim h
+                    , PEN.Novelty.Scope.FrontierKey.compElim s!"rec_{h}" ]
                   else
-                    actionsWithMaps
+                    []
+              | none => []
 
-          let nbTerms := neighborhoodTermsForCtors targetsSealed
-          let actions' : List AtomicDecl :=
-            PEN.Novelty.Scope.dedupBEq (actionsWithAliases ++ nbTerms ++ jumpExtras)
+            let exKeys :=
+              PEN.Novelty.Scope.dedupBEq
+                (keysOfTargets targetsSealed
+                 ++ endoKeysForTFSet targetsSealed
+                 ++ hostSuppress
+                 ++ elimSuppress)
 
-          let xIsTFSolo := PEN.Novelty.Scope.allTFOnly targetsCore
-          let hostSuppress :=
-            match host? with
-            | some h => if xIsTFSolo then extraSuppressForTFSoloNonHIT pkg.actions h else []
-            | none   => []
+            let sc : ScopeConfig :=
+              { actions       := actionsAug
+                horizon       := noveltyH
+                preMaxDepth?  := some noveltyH
+                postMaxDepth? := some 1
+                exclude       := targetsSealed
+                excludeKeys   := exKeys }
 
-          let wantsCtor := pkg.targets.any (fun a => match a with | .declareConstructor _ _ => true | _ => false)
-          let wantsElim := pkg.targets.any (fun a => match a with | .declareEliminator _ _ => true | _ => false)
-          let elimSuppress :=
-            match host? with
-            | some h =>
-                if wantsCtor && !wantsElim then
-                  [ PEN.Novelty.Scope.FrontierKey.elim h
-                  , PEN.Novelty.Scope.FrontierKey.compElim s!"rec_{h}" ]
-                else
-                  []
-            | none => []
-
-          let exKeys :=
-            PEN.Novelty.Scope.dedupBEq
-              (keysOfTargets targetsSealed
-               ++ endoKeysForTFSet targetsSealed
-               ++ hostSuppress
-               ++ elimSuppress)
-
-          let sc : ScopeConfig :=
-            { actions       := actions'
-              horizon       := noveltyH
-              preMaxDepth?  := some noveltyH
-              postMaxDepth? := some 1
-              exclude       := targetsSealed
-              excludeKeys   := exKeys }
-
-          match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc (maxDepthX := H) with
-          | none => none
-          | some rep0 =>
-              let rep := rep0
-              let bar := acceptanceBar mode hist
-              let δ   := rep.rho - bar
-              some { pkg := pkg, report := rep, bar := bar, overshoot := δ }
+            match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc (maxDepthX := H) with
+            | none => none
+            | some rep0 =>
+                let rep := rep0
+                let bar := acceptanceBar mode hist
+                let δ   := rep.rho - bar
+                some { pkg := pkg, report := rep, bar := bar, overshoot := δ }
 
 
 
