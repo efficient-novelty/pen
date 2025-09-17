@@ -83,10 +83,15 @@ private def pickElimFor (actions : List AtomicDecl) (T : String) : Option Atomic
     | _ => false)
 
 
-/-- Only keep U0 blocked; expose everything else (incl. type formers). -/
+/-- Expose type formers and ordinary atoms; hide classifier-level attachments. -/
 private def isExposedGoal : AtomicDecl → Bool
-  | .declareUniverse 0   => false
-  | _                    => true
+  | .declareUniverse 0           => false
+  | .declareConstructor _ T      => not (isClassifier T)
+  | .declareEliminator  _ T      => not (isClassifier T)
+  | .declareCompRule   _ _       => false
+  | .declareTerm       _ T       => not (isClassifier T)
+  | .declareTypeFormer _         => true
+  | .declareUniverse _           => true
 
 @[inline] def allowPrereqBoot (B : Context) : AtomicDecl → Bool
   | .declareUniverse (Nat.succ ℓ) => (ℓ = 0) && not B.hasAnyUniverse
