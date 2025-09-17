@@ -273,14 +273,17 @@ open PEN.Select.Discover  -- for `hostOf`
   | .declareTerm nm T => (T = h) && (nm = s!"schema_{h}")
   | _ => false
 
-@[inline] def sealedClassifierHost (actions : List AtomicDecl) (ts : List AtomicDecl) : Bool :=
+@[inline] def hasElimFor (h : String) (ts : List AtomicDecl) : Bool :=
+  ts.any (fun a =>
+    match a with
+    | .declareEliminator _ T => T == h
+    | _ => false)
+
+@[inline] def sealedClassifierBundle (ts : List AtomicDecl) : Bool :=
   match commonHost? ts with
   | some h =>
       if isClassifierTypeName h then
-        let needElims := eliminatorsForTypesIn actions [h]   -- e.g. C∞_Man, hom_Pi, hom_Sigma
-        let hasElim   := needElims.all (fun e => ts.any (· == e))
-        let hasSchema := ts.any (isSchemaFor h)
-        hasElim && hasSchema
+        hasElimFor h ts && ts.any (isSchemaFor h)
       else
         true
   | none => true
@@ -817,11 +820,12 @@ let admissible : List DiscoveredX :=
     let goodBundle :=
       match commonHost? X.targets with
       | some h =>
-          if looksLikeHITHost cfg.actions h then
+          if isClassifierTypeName h then
+            sealedClassifierBundle X.targets
+          else if looksLikeHITHost cfg.actions h then
             (not (allTFOnly X.targets)) && isFullForHost X.targets h
           else
-            -- Classifiers (Π, Σ, Man): must be sealed (elim + schema_*).
-            sealedClassifierHost cfg.actions X.targets
+            true
       | none => allTFOnly X.targets || allUniversesOnly X.targets
 
     (Lx ≤ Lstar + 1) && foundationOK && goodBundle)
@@ -889,7 +893,7 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
         match commonHost? targetsSealed with
         | some h =>
             if isClassifierTypeName h then
-              sealedClassifierHost pkg.actions targetsSealed
+              sealedClassifierBundle targetsSealed
             else
               isFullForHost targetsSealed h
         | none => true
