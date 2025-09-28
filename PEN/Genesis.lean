@@ -377,7 +377,8 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
   let B     := st.B
   let H     := st.H
   let hist  := st.history
-  let bar   := acceptanceBar dcfg.barMode hist
+  let beta  := st.beta
+  let bar   := acceptanceBar dcfg.barMode beta hist
 
   let XsSingles : List DiscoveredX := discoverCandidates           B H dcfg.actions
   let XsPairs   : List DiscoveredX := discoverTFPairBundles        B H dcfg.actions
@@ -397,7 +398,7 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
   let evals : List XOutcome :=
     admissible.foldl
       (fun acc X =>
-        match evalX? dcfg B H hist X with
+        match evalX? dcfg B H beta hist X with
         | some e => acc ++ [e]
         | none   => acc)
       []
