@@ -366,217 +366,154 @@ Two simple ideas drive the dynamics:
 (ii) remember recent performance and demand that new winners clear an adaptive bar.
 This creates a self-organizing trajectory: small tools enable medium ones; mediums reveal higher-level patterns; the process repeats.
 
-\paragraph{Standing convention.}
-Fix a canonical, prefix-free, compositional codebook $\mathcal{C}=L_{\mathrm{HoTT}}$
-for well-typed HoTT terms (unique modulo definitional equality).
-The codebook is a syntactic naming device; it does not affect costs.
+**Definition 1 (Computer-Aided Declaration (CAD) System).**
+We model Mathematical Reality $\mathcal{R}$ within a formal system called CAD. $\mathcal{R}$ is represented by a formal Context $\Gamma$, a finite collection of realized Atomic Declarations (`AtomicDecl`). The system evolves via `Derivations` (sequences of declarations) drawn from a finite action alphabet $\mathcal{A}$. A validity predicate `isValidInContext(decl, Γ)` enforces structural dependencies (e.g., a term requires its type former; a specific affordance may require a prerequisite organizing term).
 
-\begin{definition}[Level]
-For any well-typed object $X$ in HoTT, define its level $\mathrm{Lev}(X)$ by:
+%==========================AXIOM 1===============================================%
+
+\begin{axiom}[Discrete Evolution and Hierarchical Integration]
+Mathematical Reality $\mathcal{R}$ is a cumulative sequence of formal CTT contexts. $\mathcal{R}$ evolves through discrete logical time $\tau \in \mathbb{N}$, beginning from the empty set $\mathcal{R}(0) = \emptyset$. The evolution is strictly cumulative:
+
 \[
-\mathrm{Lev}(X) :=
-\begin{cases}
-\min\{\,i\mid X:\mathcal{U}_i\,\}, & \text{if $X$ is a type},\\[2pt]
-\mathrm{Lev}(\mathrm{type\_of}(t)), & \text{if $X\!=\!t$ is a term},\\[2pt]
-i, & \text{if } X=F \text{ is a family } F:A\to \mathcal{U}_i.
-\end{cases}
-\]
-\end{definition}
-
-\vspace{-0.5em}
-\subsection{The Axioms of PEN}
-
-%===============================
-% AXIOM 1: Monotone evolution
-%===============================
-\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
-\begin{axiom}[Monotone, ticked evolution]\label{ax:mono}
-Starting from $\mathrm{Reality}(0)=\emptyset$, reality evolves by ticks $\tau\in\mathbb{N}$:
-\[
-\mathrm{Reality}(\tau-1)\subseteq \mathrm{Reality}(\tau)
-\]
-and either \textbf{realizes} new structure(s) (strict inclusion) or \textbf{idles} (equality).
-Realization is irreversible.
-\end{axiom}
-\end{mdframed}
-
-%===============================
-% AXIOM 2: Effort
-%===============================
-\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
-\begin{axiom}[Effort as shortest derivation]\label{ax:kappa}
-Fix a finite action alphabet $\mathcal{A}$ of atomic construction steps.
-A \emph{derivation} is a finite list in $\mathcal{A}$ whose cumulative effect is valid in HoTT.
-For a basis $B$ and target $Y$,
-\[
-\kappa(Y\mid B) \;=\;
-\min\{\, \text{\emph{length}}(\mathcal{D}) \;\mid\; \mathcal{D} \text{ derives } Y \text{ from } B \text{ using }\mathcal{A} \,\}.
-\]
-\emph{Finite density:} for fixed $B$ and $k$, only finitely many $Y$ satisfy $\kappa(Y\mid B)=k$.
-\end{axiom}
-\end{mdframed}
-
-
-%===============================
-% AXIOM 3: Novelty
-%===============================
-\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
-\begin{axiom}[Novelty as effort savings]\label{ax:novelty-compact}
-Let $B=\mathrm{Reality}(\tau-1)$ be the current basis and $H\in\mathbb{N}_{\geq 2}$ the horizon.
-Fix a finite action alphabet $\mathcal{A}$ and a computable \emph{schema key}
-\[
-K:\ \mathcal{A}\longrightarrow \mathsf{Keys}
-\]
-that identifies targets differing only by schema (e.g.\ all declarations that introduce a type former share the same key, whereas other atoms are distinguished by their full identity).
-Write $\sim_K$ for the induced equivalence and sum once per class. We choose $K$ so that (i) all declarations that introduce a type former share one key, (ii) any eliminator for a host $T$ and the canonical classifier schema/alias terms for $T$ share the same key as $T$'s type former, while (iii) other atoms are keyed by their full identity. Write again $X\subseteq \mathcal{A}$ for the finite set of atomic targets installed by the candidate.
-\\
-\smallskip
-\noindent\emph{Post frontier radius:} 
-\[r_\tau = 
-\begin{cases}
-  1, & \text{if $\tau \leq 2$},\\
-  \min(2, H_\tau), & \text{if $\tau > 2$}.
-\end{cases}
-\]
-\[
-\mathrm{Frontier}(X;B)\;:=\;\bigl\{\, Y\in\mathcal{A}\setminus X\ \bigm|\ \kappa\!\bigl(Y\mid B\cup X\bigr)\leq r_\tau \,\bigr\}.
-\]
-\noindent\emph{Pre-truncation at $H$:}
-\[
-\widehat{\kappa}_H(Y\mid B)\;:=\;\min\!\bigl(\,\kappa(Y\mid B)\,,\,H{+}1\,\bigr).
-\]
-\noindent\emph{Novelty and efficiency:}
-\[
-\nu(X\mid B,H)\;=\;
-\sum_{[Y]\in \mathrm{Frontier}_{\boldsymbol{r_\tau}}(X;B)/{\sim_K}}
-\max\!\bigl(0,\ \widehat{\kappa}_H(Y\mid B)-\kappa\!\bigl(Y\mid B\cup X\bigr)\bigr),
-\qquad
-\]
-\[
-\rho(X)\;=\;\frac{\nu(X\mid B,H)}{\kappa(X\mid B)}.
-\]
-
-\end{axiom}
-\end{mdframed}
-\begin{remark}
-When $X$ introduces a classifier $T$ as a new type former, frontier targets that are infrastructure attached to $T$ itself—namely its canonical eliminator $hom_T$ and its bundled closure/schema $schema_T$—are treated as part of the same structural installation and do not contribute to novelty.
-External terms (e.g., “maps into $T$”) do contribute.  
-\end{remark}
-%===============================
-% AXIOM 4: Increasingly Efficient Structures
-%===============================
-\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
-\begin{axiom}[Increasingly efficient structures]\label{ax:gate-select}
-At tick $\tau$, let $B=\mathrm{Reality}(\tau-1)$ and $H=H(\tau)$.
-\emph{Gate (admissibility).} Write $L^*:=\max\{\mathrm{Lev}(Z)\mid Z\in B\}$.
-A candidate $X$ is admissible if
-\begin{enumerate}[label=(\roman*)]
-\item \textbf{Budget: } $\kappa(X\mid B)\leq H$,
-\item \textbf{Level cap: } $\mathrm{Lev}(X)\leq L^*+1$,
-\item \textbf{Foundation: } some minimal derivation of $X$ uses only levels in $\{L^*,\,L^*-1\}$.
-\end{enumerate}
-\emph{Bar.} Let the last and penultimate realized ticks be $t_{<}$ and $t_{<<}$ with realized pairs
-$(\nu_{-1},\kappa_{-1})$ and $(\nu_{-2},\kappa_{-2})$ respectively. Define
-\[
-\mathrm{Bar}(\tau)=
-\begin{cases}
-0, & \text{if no realizations yet},\\[4pt]
-\displaystyle\frac{\nu_{-1}}{\kappa_{-1}}, & \text{if exactly one realization},\\[10pt]
-\displaystyle\frac{\nu_{-1}+\nu_{-2}}{\kappa_{-1}+\kappa_{-2}}, & \text{if two or more realizations}.
-\end{cases}
-\]
-\emph{Selection.} For all admissible $X$, compute $\rho(X)$ from Axiom~\ref{ax:novelty-compact}.
-\begin{itemize}
-\item If $\max_X \rho(X)\leq \mathrm{Bar}(\tau)$, the tick \emph{idles}.
-\item Otherwise the tick \emph{realizes} the candidates with the \emph{minimal overshoot} above the bar:
-\[
-\arg\min\bigl\{\,\rho(X)-\mathrm{Bar}(\tau)\;\bigm|\; \rho(X)>\mathrm{Bar}(\tau)\,\bigr\},
-\]
-breaking ties by minimal $\kappa(X\mid B)$; if still tied, realize all such structures (superposition).
-\end{itemize}
-\emph{Schedule.} Append the realized totals $(\sum\nu,\sum\kappa)$ to the history and update
-\[
-H(\tau{+}1)=
-\begin{cases}
-2, & \text{if $\tau$ realized (reset after success)},\\
-H(\tau)+1, & \text{if $\tau$ idled (expand search)}.
-\end{cases}
-\]
-\end{axiom}
-\end{mdframed}
-\vspace{-0.75em}
-
-
-%=================================================
-% AXIOM 5: Integration Frontier Additivity
-%=================================================
-\begin{mdframed}[linewidth=1pt, linecolor=black, backgroundcolor=gray!06, nobreak=true]
-\begin{axiom}[Integration Frontier Additivity]\label{ax:IFA}
-Fix the finite alphabet $\mathcal{A}$, the schema key $K$ from
-Axiom~\ref{ax:novelty-compact}, and the selection mechanism and schedule of
-Axiom~\ref{ax:gate-select}. Let the realized winners be
-$X_1,X_2,\dots$ at ticks $T_1<T_2<\cdots$, and write
-$B_n:=\mathrm{Reality}(T_n)$ for the post-basis after the $n$-th realization.
-Let $H_n^{*}$ denote the \emph{minimal horizon} at which $X_n$ just clears
-the bar (so $X_n$ is not selected at $H_n^{*}-1$ but is selected at $H_n^{*}$).
-
-For every $n\geq 2$ there exist finite, disjoint sets
-$\mathcal{F}^{(n)}_{n+1},\ \mathcal{F}^{(n-1)}_{n+1}\subset \mathcal{A}/\!\sim_K$
-such that
-\begin{enumerate}[label=(\alph*), itemsep=2pt]
-\item \textbf{One-step union (post ring $=1$).}
-\[
-\mathrm{Frontier}_1(X_{n+1};B_n)/{\sim_K}
-\;=\;
-\mathcal{F}^{(n)}_{n+1}\ \uplus\ \mathcal{F}^{(n-1)}_{n+1}.
-\]
-\item \textbf{Two plateaus of pre-depth.}
-For every class $[Y]\in\mathcal{F}^{(n)}_{n+1}$ we have
-$\kappa(Y\mid B_n)=H_n^{*}$, and for every
-$[Y]\in\mathcal{F}^{(n-1)}_{n+1}$ we have $\kappa(Y\mid B_n)=H_{n-1}^{*}$.
-\item \textbf{Nondegeneracy.}
-Both $\mathcal{F}^{(n)}_{n+1}$ and $\mathcal{F}^{(n-1)}_{n+1}$ are nonempty.
-\end{enumerate}
-
-\end{axiom}
-\end{mdframed}
-
-\subsection{Remarks and Examples}
-
-\paragraph{Why decouple the budgets?}
-Using $H$ for \emph{candidates} and a fixed $R^*$ for \emph{post-frontier} keeps novelty local and stable.
-For instance, when $R^*=1$ and $K$ collapses ``introduce a type former'' into a single schema class,
-introducing a universe yields $\nu=1$ (one counted class), not an explosion that scales with the number of type names.
-
-\paragraph{Early steps (illustrative).}
-From $\mathrm{Reality}(0)=\emptyset$ with $H(0)=2$, the first admissible winners are typically
-(i) a universe (or a small bundle of universes) and
-(ii) a first basic type (e.g.\ \textsf{Unit}) whose constructor and recursor sit one step away.
-Because the ring is small ($R^*=1$) and type-formers are deduped by $K$, the novelty of these steps is modest and well-behaved; the bar rises accordingly, and deeper structures only actualize after idles increase $H$.
-
-\paragraph{Level discipline.}
-The level cap $\mathrm{Lev}(X)\leq L^*+1$ and the foundation constraint (derivations use only $\{L^*,L^*-1\}$) enforce \emph{adjacent-level growth}: each realization consolidates the current stratum before reaching higher.
-
-\paragraph{Bar policies.}
-Two-tap reacts to the last two realized efficiencies; $\varphi\Omega$ scales the running average by the golden ratio. Both create a moving target; which one you choose is a modeling choice.
-
-\paragraph{Derived regularities.}
-For many finite alphabets and bar policies, the minimal horizons at which successive winners just clear the bar exhibit near-Fibonacci recurrences and golden-ratio growth of the running average. We regard these as empirical laws or theorems about particular profiles, not as axioms.
-
-\vspace{-0.25em}
-\subsection{Summary}
+\mathcal{R}(\tau-1) \subseteq \mathcal{R}(\tau)
+\]When a new structure $X_n$ is actualized at time $\tau_n$, the system enters an integration period $\Delta_n = \tau_{n+1} - \tau_n$. The duration of this period is determined by the following principles:
 
 \begin{enumerate}
-\item \textbf{Monotone ticks:} reality grows irreversibly by discrete steps.
-\item \textbf{Effort:} $\kappa$ is shortest derivation length over a fixed finite alphabet.
-\item \textbf{Novelty:} sum of local, post-bounded savings with a fixed ring $R^*$ and schema dedup $K$; pre-costs are truncated at the horizon $H$.
-\item \textbf{Gate--Select--Schedule:} admit by budget and adjacent-level discipline; select above an adaptive bar by minimal overshoot (tie-break by $\kappa$, allow superposition); reset/increase the horizon by a simple success/idle rule.
-\item \textbf{Integration Frontier Additivity} The set of immediate prerequisites for the next realization is anchored at the exact difficulty level of the two previous discoveries.
+\item \textbf{Integration Cost:} The duration equals the organizational complexity of the domain that $X_n$ organizes:
+
+\[
+\Delta_n = \kappa(\text{domain organized by } X_n)
+\]
+
+\item \textbf{Hierarchical Synthesis:} For $n \ge 2$, the domain organized by a new structure $X_n$ is the conceptual synthesis of the domains organized by the two preceding structures, $X_{n-1}$ and $X_{n-2}$. Its complexity is therefore the sum of their complexities:
+\[
+\kappa(\text{domain of } X_n) = \kappa(\text{domain of } X_{n-1}) + \kappa(\text{domain of } X_{n-2})
+\]
+
+\end{enumerate}
+\end{axiom}
+
+The cumulative nature ensures that mathematical knowledge is never lost. The principle of Hierarchical Synthesis formalizes the observation that each major mathematical insight serves to unify and build upon the two most recent conceptual foundations. This creates an intrinsic growth pattern that optimally balances memory (the structures of $\tau_{n-1}$ and $\tau_{n-2}$) with momentum (the new possibilities opened by $X_n$), forcing the system to evolve at the golden ratio. Time, in this framework, is not merely a counter but the computational cost of this hierarchical synthesis.
+
+
+**Definition 2 (Effort $\kappa$ as Minimal Derivation Length).**
+Given a base context $B$ and a target structure (package) $X$, the raw effort $\kappa_{raw}(X|B)$ is the length of the shortest valid derivation $D \subseteq \mathcal{A}$ that installs $X$ on $B$. This minimum is found via Iterative Deepening Depth-First Search (IDDFS).
+
+The final Effort $\kappa(X|B)$ incorporates *Coherence Discounts* $\Delta_{coh}(X)$ for recognized self-organizing bundles (e.g., Pi/Sigma duality, sealed HITs), reflecting reduced essential complexity.
+$$
+\kappa(X|B) = \kappa_{raw}(X|B) - \Delta_{coh}(X)
+$$
+
+**Definition 3 (Novelty Gauge $H_{\nu}$ and Truncated Effort).**
+The Novelty Gauge is a fixed, small horizon used to measure the immediate impact of a structure, set to $H_{\nu} = 2$. The truncated effort $\kappa_{H}(Y|B)$ is the effort $\kappa(Y|B)$ if it is $\leq H$, and $H+1$ otherwise.
+
+**Definition 4 (Immediate Frontier $\mathcal{F}$).**
+The Immediate Frontier $\mathcal{F}(X|B)$ is the set of concepts $Y \in \mathcal{A}$ that become accessible in a single step after realizing $X$.
+$$
+\mathcal{F}(X|B) = \{ Y \in \mathcal{A} \setminus X \mid \kappa(Y|B \cup X) = 1 \}
+$$
+
+**Definition 5 (Schema Keying and Capacity).**
+A Schema Keying function $K(Y)$ maps declarations to `FrontierKey` classes.
+1.  **Coarse Graining vs. Exactness:** It balances grouping similar concepts (e.g., general terms of the same host) with maintaining distinctness for unique organizational concepts (e.g., path structure terms).
+2.  **Endogeneity:** We define Endogenous Keys $\mathcal{K}_{endo}(X)$ as the keys associated with the internal machinery of $X$.
+3.  **Capacity:** Each key $k$ has a Capacity $C(k)$ (typically 2 or 3), limiting the maximum novelty contribution from that schema class, reflecting its intrinsic complexity.
+
+***
+
+### Axiom 3 Novelty as Algorithmic Compression
+
+The Novelty $\nu(X|B)$ of a structure $X$ relative to basis $B$ measures the total reduction in effort required to access the Immediate Frontier $\mathcal{F}(X|B)$. It is calculated using the fixed Novelty Gauge $H_{\nu}=2$.
+
+\begin{axiom}[Novelty Calculation (AIT Formulation)]
+The calculation of $\nu(X|B)$ proceeds as follows:
+
+\textbf{1. Effort Reduction Calculation:}
+For each concept $Y$ on the Immediate Frontier $\mathcal{F}(X|B)$, we calculate the raw reduction in effort achieved by realizing $X$.
+\[
+\Delta_{raw}(Y) = \kappa_{H_{\nu}}(Y|B) - \kappa(Y|B \cup X)
+\]
+
+\textbf{2. Apply Capacity Constraints:}
+The effective contribution $\Delta(Y)$ is the raw reduction capped by the capacity of its schema key $C(K(Y))$.
+\[
+\Delta(Y) = \min(\Delta_{raw}(Y), C(K(Y)))
+\]
+
+\textbf{3. Schema Keying and Exclusion:}
+The frontier $\mathcal{F}$ is partitioned into equivalence classes based on the Schema Keying function $K$.
+
+*   \textbf{Exclusion:} We filter the frontier to exclude concepts whose keys are endogenous to $X$.
+    \[
+    \mathcal{F}_{ext} = \{ Y \in \mathcal{F}(X|B) \mid K(Y) \notin \mathcal{K}_{endo}(X) \}
+    \]
+*   \textbf{Maximal Gain per Key:} For each remaining (external) Schema Key $K_i$, we calculate the maximal effort reduction achieved within that class:
+\[
+\Delta_{max}(K_i) = \max_{Y \in \mathcal{F}_{ext}: K(Y)=K_i} \Delta(Y)
+\]
+
+\textbf{4. Novelty Summation:}
+The core novelty is the sum of the maximal effort reductions over all external schema classes.
+\[
+\nu_{core}(X|B) = \sum_{K_i} \Delta_{max}(K_i)
+\]
+
+The total novelty includes a bonus for packages that introduce new abstraction layers:
+\[
+\nu(X|B) = \nu_{core}(X|B) + \text{Bonus}(X)
+\]
+where $\text{Bonus}(X) = 1$ if $X$ consists entirely of Type Formers, and 0 otherwise.
+\end{axiom}
+
+\subsection{Axiom 4: Selection by Minimal Overshoot}
+
+The selection mechanism determines which structures get realized based on their efficiency relative to a dynamic threshold that rises with accumulated mathematical sophistication.
+
+\begin{axiom}[Competition and Selection]
+At each tick $\tau$, the algorithm selects at most one structure for realization through the following process:
+
+\textbf{Define the Global Resonance Bar:}
+\[
+\text{Bar}(\tau) = \Phi(\tau) \cdot \Omega(\tau-1)
+\]
+where:
+\begin{itemize}
+\item $\Omega(\tau-1) = \frac{\sum_{t<\tau} \nu(t)}{\sum_{t<\tau} \kappa(t)}$ is the historical average efficiency
+\item $\Phi(\tau) = \frac{\tau}{\tau_{-1}}$ is the momentum factor (ratio of current time to time of last realization)
+\end{itemize}
+
+\textbf{Admissibility Criteria:}
+A structure $X$ is admissible at time $\tau$ if:
+\begin{enumerate}
+\item $\kappa(X \mid \mathcal{R}(\tau-1)) \leq H$ (within current effort horizon)
+\item $\text{Level}(X) \leq \max_{Y \in \mathcal{R}(\tau-1)} \text{Level}(Y) + 1$ (respects universe hierarchy)
+\item $X$ can be constructed from structures in $\mathcal{R}(\tau-1)$
 \end{enumerate}
 
-These four principles give a clean, parameterized mechanism.
-Choosing $(\mathcal{A}, R^*, K,\text{bar policy})$ fixes a concrete ``genesis profile.''
-The resulting dynamics is deterministic, auditable, and---crucially---keeps early novelty bounded while preserving the long-range, self-organizing behavior we seek to model.
+\textbf{Selection Rule:}
+\begin{enumerate}
+\item Calculate efficiency $\rho(X) = \nu(X)/\kappa(X)$ for all admissible candidates
+\item If $\max_X \rho(X) < \text{Bar}(\tau)$: idle (no realization), increment horizon $H \to H+1$
+\item Otherwise: realize the candidate with minimal positive overshoot:
+\[
+\text{Winner} = \arg\min_{X : \rho(X) \geq \text{Bar}(\tau)} \left(\rho(X) - \text{Bar}(\tau)\right)
+\]
+\item After realization: reset horizon $H \to 2$
+\end{enumerate}
+
+\textbf{Tie-Breaking:}
+If multiple candidates achieve identical minimal overshoot, select those with minimal $\kappa$. If ties persist, realize all tied candidates in superposition, weighted by their number of distinct minimal derivations.
+\end{axiom}
+
+The Global Resonance Bar serves as a quality control mechanism that prevents premature or incremental realizations. The historical average $\Omega$ ensures that new structures must be increasingly efficient as mathematics matures, while the momentum factor $\Phi$ prevents indefinite stagnation by gradually lowering the threshold during idle periods.
+
+The minimal overshoot principle is crucial: it ensures that mathematics develops through conceptually coherent steps rather than jumping to highly efficient but premature abstractions. This creates a ``conceptual ratchet'' where each realization is the natural next step given current mathematical reality.
+
+The horizon mechanism ($H$) controls the search space for candidates. Starting at $H=2$ after each realization forces the next innovation to be lean and directly build on recent progress. When no candidates clear the bar, the horizon expands, allowing more complex structures to be considered.
+
+Together, these four axioms create a self-organizing system where mathematical structures emerge not randomly but in order of optimal conceptual compression, producing a growth pattern that balances exploration of new structures with integration of existing ones.
+
+
 %=====================================================================
 %                   END OF AXOMS
 %=====================================================================
