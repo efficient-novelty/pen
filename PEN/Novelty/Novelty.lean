@@ -20,6 +20,7 @@ import PEN.CAD.Atoms
 import PEN.Novelty.Scope
 import PEN.CAD.Kappa
 import PEN.Select.Discover
+import PEN.Select.Effort
 
 namespace PEN.Novelty.Novelty
 
@@ -268,26 +269,24 @@ def noveltyForPackage?
   let rawBound := maxDepthX + liftForSealedDual targets
   match iddfsMin sc.actions goal rawBound B with
   | none => none
-  | some (kXraw, post) =>
+  | some (_, post) =>
     let es := frontierAllScoped B post sc
     let nuCore := PEN.Novelty.Scope.sumContribWithCaps post es
 
-    -- Axiom 2: sealed dual-package discount for Π/Σ
-    let kXsealed :=
-      if isPiSigmaDual targets then
-        let k' := kXraw - 2
-        Nat.max 3 k'
-      else
-        match sealedNonClassifierHost? targets with
-        | some _ =>
-            let k' := kXraw - 1
-            Nat.max 3 k'
-        | none => kXraw
+    -- Essential effort per Axiom 2
+    let ϵ := PEN.Select.Effort.effortOfTargets targets
 
     -- Axiom 3′: TF-only packages earn a +1 bonus
     let tfBonus := if PEN.Novelty.Scope.allTFOnly targets then 1 else 0
     let ν := nuCore + tfBonus
-    let ρ := if kXsealed = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kXsealed)
-    some { post := post, kX := kXsealed, frontier := es, nuCore := nuCore, tfBonus := tfBonus, nu := ν, rho := ρ }
+    let effort := ϵ.total
+    let ρ := if effort = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat effort)
+    some { post := post
+         , kX := effort
+         , frontier := es
+         , nuCore := nuCore
+         , tfBonus := tfBonus
+         , nu := ν
+         , rho := ρ }
 
 end PEN.Novelty.Novelty
