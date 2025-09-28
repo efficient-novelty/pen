@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1759043202.57774 "c:/dev/pen-gpt5/lean/math.tex" "math.pdf" "math" 1759043204.04983 0
-  "c:/dev/pen-gpt5/lean/math.tex" 1759043200 84105 ee1e884a50def95f44e82c5f48447810 ""
+["pdflatex"] 1759053208.35047 "c:/dev/pen-gpt5/lean/math.tex" "math.pdf" "math" 1759053210.10233 0
+  "c:/dev/pen-gpt5/lean/math.tex" 1759053205 85212 42e58bee8b4586ec478bdacc55c32717 ""
   "c:/texlive/2025/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1743347526 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "c:/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1743348519 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "c:/texlive/2025/texmf-dist/fonts/tfm/jknappen/ec/tcrm1095.tfm" 1743348090 1536 02c06700a42be0f5a28664c7273f82e7 ""
@@ -221,9 +221,9 @@
   "c:/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1743358430 5546851 e7871638e4e57d7ca4525db0eb5a9d2a ""
   "c:/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1743358644 3346149 084e46f3a79642f18831c48b1653c83f ""
   "c:/texlive/2025/texmf.cnf" 1743358408 713 e69b156964470283e0530f5060668171 ""
-  "math.aux" 1759043203 11433 f99fabe07c710b47c37ebe9bfa223ec5 "pdflatex"
-  "math.out" 1759043203 13814 6bda32876044579d5428a11970689bf9 "pdflatex"
-  "math.tex" 1759043200 84105 ee1e884a50def95f44e82c5f48447810 ""
+  "math.aux" 1759053209 10191 c5bffc502d0d1d3a161b506a1749433d "pdflatex"
+  "math.out" 1759053209 12410 1f7ee59af89e9cd6fdd9f47e8fef488f "pdflatex"
+  "math.tex" 1759053205 85212 42e58bee8b4586ec478bdacc55c32717 ""
   (generated)
   "math.aux"
   "math.log"
