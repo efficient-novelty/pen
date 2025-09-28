@@ -131,11 +131,24 @@ def s2Spec : HITSpec := specS2 "S2"
 def actionsS2 : List AtomicDecl :=
   actionsForHIT s2Spec (some 0)
 
+def s3TypeDecls : List AtomicDecl :=
+  [ declareTypeFormer "S3" ]
+
 def s2AffordanceTermDecls : List AtomicDecl :=
   [ declareTerm "S2.hopf"      "S2"
   , declareTerm "S2.susp"      "S2"
   , declareTerm "S2.collapse"  "S2"
   ]
+
+def hopfBundleTargets : List AtomicDecl :=
+  [ declareTerm "Hopf.projection" "S2"
+  , declareTerm "Hopf.fiber"      "S1"
+  , declareTerm "Hopf.section"    "S3"
+  , declareTerm "Hopf.coherence"  "S3"
+  ]
+
+def hopfAffordances : List AtomicDecl :=
+  (List.range 17).map (fun i => declareTerm s!"Hopf.Affordance.Concept_{i}" "Prop")
 
 
 /-- Global finite action alphabet used by discovery. -/
@@ -156,12 +169,16 @@ def globalActions : List AtomicDecl :=
   , declareConstructor "pair_Sigma" "Sigma"
   , declareEliminator "rec_Sigma" "Sigma"
   , declareCompRule "rec_Sigma" "pair_Sigma"
+  , declareTypeFormer "Prop"
   -- Man (classifier TF only; closure+elim in actionsClassifierMan)
   , declareTypeFormer "Man"
   ]
   ++ actionsS1
   ++ actionsS2
+  ++ s3TypeDecls
   ++ s2AffordanceTermDecls
+  ++ hopfBundleTargets
+  ++ hopfAffordances
   ++ actionsClassifierMan
 
 

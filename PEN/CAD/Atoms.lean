@@ -150,6 +150,13 @@ end Context
   else if nm.startsWith t then some (nm.drop t.length)
   else none
 
+/-- Check whether a term name encodes a dependency on another declaration. -/
+@[inline] def termDependency? (nm : String) : Option String :=
+  if nm.startsWith "Hopf.Affordance." then
+    some "Hopf.coherence"
+  else
+    none
+
 /--
 Paper‑faithful validity predicate for one atomic declaration given a context.
 
@@ -169,11 +176,15 @@ def isValidInContext (decl : AtomicDecl) (ctx : Context) : Bool :=
   | AtomicDecl.declareCompRule e c      => hasElimName ctx e && hasCtorName ctx c
   | AtomicDecl.declareTerm nm T =>
       let base := hasTypeFormer ctx T
-      match ctorNameFromTerm? nm with
-      | some c =>
-          base && (ctx.constructors.any (fun p => p.fst == c && p.snd == T))
-      | none   =>
-          base
+      let ctorCheck :=
+        match ctorNameFromTerm? nm with
+        | some c =>
+            base && (ctx.constructors.any (fun p => p.fst == c && p.snd == T))
+        | none   =>
+            base
+      match termDependency? nm with
+      | some depName => ctorCheck && ctx.hasTerm depName
+      | none         => ctorCheck
 
 
 
