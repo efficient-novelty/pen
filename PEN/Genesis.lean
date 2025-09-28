@@ -151,6 +151,19 @@ def hopfAffordances : List AtomicDecl :=
   (List.range 17).map (fun i => declareTerm s!"Hopf.Affordance.Concept_{i}" "Prop")
 
 
+def actionsDCT : List AtomicDecl :=
+  [ declareTypeFormer "Topos"
+  , declareTypeFormer "Coh"
+  , declareTypeFormer "Time"
+  , declareTypeFormer "DCT"
+  , declareTerm "Coh.shape"  "Coh"
+  , declareTerm "Coh.flat"   "Coh"
+  , declareTerm "Coh.sharp"  "Coh"
+  , declareTerm "Time.flow"  "Time"
+  , declareTerm "DCT.evolve" "DCT"
+  ]
+
+
 /-- Global finite action alphabet used by discovery. -/
 def globalActions : List AtomicDecl :=
   [ declareUniverse 0
@@ -180,6 +193,7 @@ def globalActions : List AtomicDecl :=
   ++ hopfBundleTargets
   ++ hopfAffordances
   ++ actionsClassifierMan
+  ++ actionsDCT
 
 
 def dcfg : DiscoverConfig :=

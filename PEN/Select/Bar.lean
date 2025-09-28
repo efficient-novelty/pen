@@ -54,6 +54,10 @@ abbrev History := List Tick
 @[inline] def barPhi (h : History) : Float :=
   phi * omega h
 
+/-- Resonance bar: β(τ) ⋅ Ω(τ−1). -/
+@[inline] def barResonance (beta : Float) (h : History) : Float :=
+  beta * omega h
+
 /-- Last element of a list, if any. -/
 def last1? {α} : List α → Option α
   | []        => none

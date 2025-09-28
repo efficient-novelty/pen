@@ -51,13 +51,15 @@ open PEN.Core.Levels
 inductive BarMode
   | twoTap
   | phiOmega
+  | resonance
 deriving Repr, BEq, Inhabited
 
 /-- Compute the current bar value from the history. -/
-@[inline] def acceptanceBar (mode : BarMode) (h : History) : Float :=
+@[inline] def acceptanceBar (mode : BarMode) (beta : Float) (h : History) : Float :=
   match mode with
-  | .twoTap   => barTwoTap h
-  | .phiOmega => barPhi h
+  | .twoTap    => barTwoTap h
+  | .phiOmega  => barPhi h
+  | .resonance => barResonance beta h
 
 /-- A candidate package: name, core targets, actions, and novelty enumerators. -/
 structure Pkg where
@@ -95,7 +97,14 @@ structure EngineState where
   H        : Nat      := 2
   history  : History  := []
   τ        : Nat      := 1
+  beta     : Float    := PEN.Select.Bar.phi
 deriving Repr, Inhabited
+
+@[inline] def updateBetaOnIdle (β : Float) : Float :=
+  Float.max 1.0 (β / PEN.Select.Bar.phi)
+
+@[inline] def updateBetaOnRealize (_β : Float) : Float :=
+  PEN.Select.Bar.phi
 
 /-- Optional external tick schedule. -/
 inductive Schedule
@@ -618,7 +627,7 @@ def pruneAfterAccept (accepted : List XOutcome) : List XOutcome :=
 
 
 /-- Evaluate a discovered X: novelty with immediate frontier, plus bar & overshoot. -/
-def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : DiscoveredX)
+def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (beta : Float) (hist : History) (X : DiscoveredX)
   : Option XOutcome :=
   /- classify the bundle X -/
   let _isUnitSingleton : Bool :=
@@ -729,7 +738,7 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (hist : History) (X : 
         let diag := (PEN.Novelty.Scope.Debug.frontierWithDiag B rep.post sc).2
         if cfg.debugFrontier then
           dbg_trace (PEN.Novelty.Scope.Debug.render diag)
-        let bar := acceptanceBar cfg.barMode hist
+        let bar := acceptanceBar cfg.barMode beta hist
         let δ   := rep.rho - bar
         let usedLvls :=
           let raw := X.steps.map (levelOfDecl levelEnv)
@@ -785,17 +794,17 @@ def applyRealizationX (st : EngineState) (winners : List XOutcome) : EngineState
   let nuSum  := winners.foldl (fun s e => s + e.report.nu) 0
   let kSum   := winners.foldl (fun s e => s + e.report.kX) 0
   let hist'  := pushTick st.history nuSum kSum
-  { B := B', H := 2, history := hist' }
+  { st with B := B', H := 2, history := hist' }
 
 /-- One tick in discovery mode (no curated packages). -/
 def tickDiscover (cfg : DiscoverConfig) (st : EngineState) : XTickResult :=
   let τ := st.τ
-  let barNow := acceptanceBar cfg.barMode st.history
+  let barNow := acceptanceBar cfg.barMode st.beta st.history
   let gatedIdle := match cfg.schedule with
                    | .fibonacci => !isFib τ
                    | .none      => false
   if gatedIdle then
-    let st' := { st with H := st.H + 1, τ := τ + 1 }
+    let st' := { st with H := st.H + 1, τ := τ + 1, beta := updateBetaOnIdle st.beta }
     { decision := XTickDecision.idle barNow none, state' := st' }
   else
     let H := st.H
@@ -833,12 +842,12 @@ let admissible : List DiscoveredX :=
     let evals : List XOutcome := dedupXByTargets <|
       admissible.foldl
         (fun acc X =>
-          match evalX? cfg st.B H st.history X with
+          match evalX? cfg st.B H st.beta st.history X with
           | some e => acc ++ [e]
           | none   => acc)
         []
     -- select winners
-    let barNow := acceptanceBar cfg.barMode st.history
+    let barNow := acceptanceBar cfg.barMode st.beta st.history
     let decision :=
       if evals.isEmpty then
         XTickDecision.idle barNow none
@@ -846,11 +855,11 @@ let admissible : List DiscoveredX :=
         selectWinnersX st.B cfg.eps evals
     match decision with
     | XTickDecision.idle bar best? =>
-        let st' := { st with H := st.H + 1, τ := τ + 1 }
+        let st' := { st with H := st.H + 1, τ := τ + 1, beta := updateBetaOnIdle st.beta }
         { decision := XTickDecision.idle bar best?, state' := st' }
     | XTickDecision.realized winners =>
         let st' := applyRealizationX st winners
-        let st'' := { st' with τ := τ + 1 }
+        let st'' := { st' with τ := st'.τ + 1, beta := updateBetaOnRealize st'.beta }
         { decision := XTickDecision.realized winners, state' := st'' }
 
 /-- Run N ticks in discovery mode. -/
@@ -865,7 +874,7 @@ def runNTicksDiscover (cfg : DiscoverConfig) (st0 : EngineState) (n : Nat)
   loop n st0 []
 
 /-- Try to evaluate a package under budget H; returns none if κ(X|B) > H or search fails. -/
-def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pkg)
+def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (beta : Float) (hist : History) (pkg : Pkg)
   : Option EvalOutcome :=
 
   -- Skip packages that are already installed.
@@ -990,7 +999,7 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (hist : History) (pkg : Pk
             | none => none
             | some rep0 =>
                 let rep := rep0
-                let bar := acceptanceBar mode hist
+                let bar := acceptanceBar mode beta hist
                 let δ   := rep.rho - bar
                 some { pkg := pkg, report := rep, bar := bar, overshoot := δ }
 
@@ -1042,17 +1051,17 @@ def applyRealization (st : EngineState) (winners : List EvalOutcome) : EngineSta
   let nuSum  := winners.foldl (fun s e => s + e.report.nu) 0
   let kSum   := winners.foldl (fun s e => s + e.report.kX) 0
   let hist'  := pushTick st.history nuSum kSum
-  { B := B', H := 2, history := hist' }
+  { st with B := B', H := 2, history := hist' }
 
 /-- One selection step: evaluate, compare to bar, realize or idle, and update state. -/
 def tick (cfg : EngineConfig) (st : EngineState) : TickResult :=
   let τ := st.τ
-  let barNow := acceptanceBar cfg.barMode st.history
+  let barNow := acceptanceBar cfg.barMode st.beta st.history
   let gatedIdle := match cfg.schedule with
                    | .fibonacci => !isFib τ
                    | .none      => false
   if gatedIdle then
-    let st' := { st with H := st.H + 1, τ := τ + 1 }
+    let st' := { st with H := st.H + 1, τ := τ + 1, beta := updateBetaOnIdle st.beta }
     { decision := TickDecision.idle barNow none, state' := st' }
   else
     let H := st.H
@@ -1060,7 +1069,7 @@ def tick (cfg : EngineConfig) (st : EngineState) : TickResult :=
     let evals : List EvalOutcome := dedupByTargets <|
       cfg.pkgs.foldl
         (fun acc pkg =>
-          match evalPkg? st.B H cfg.barMode st.history pkg with
+          match evalPkg? st.B H cfg.barMode st.beta st.history pkg with
           | some e => acc ++ [e]
           | none   => acc)
         []
@@ -1068,11 +1077,11 @@ def tick (cfg : EngineConfig) (st : EngineState) : TickResult :=
     match decision with
     | .idle bar best? =>
         -- expand horizon by one
-        let st' := { st with H := st.H + 1, τ := τ + 1  }
+        let st' := { st with H := st.H + 1, τ := τ + 1, beta := updateBetaOnIdle st.beta }
         { decision := .idle bar best?, state' := st' }
     | .realized winners =>
         let st'  := applyRealization st winners            -- resets H := 2
-        let st'' := { st' with τ := τ + 1 }                -- <-- add τ := τ + 1
+        let st'' := { st' with τ := st'.τ + 1, beta := updateBetaOnRealize st'.beta }
         { decision := .realized winners, state' := st'' }
 
 /-- Run N ticks, returning the final state and a vector of results. -/
