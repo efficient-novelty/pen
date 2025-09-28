@@ -101,7 +101,7 @@ structure EngineState where
 deriving Repr, Inhabited
 
 @[inline] def updateBetaOnIdle (β : Float) : Float :=
-  Float.max 1.0 (β / PEN.Select.Bar.phi)
+  max 1.0 (β / PEN.Select.Bar.phi)
 
 @[inline] def updateBetaOnRealize (_β : Float) : Float :=
   PEN.Select.Bar.phi
@@ -481,14 +481,14 @@ deriving Repr
 /-- Add a canonical (C,E,R) triple to seal Π/Σ (choose Π deterministically). -/
 @[inline] def sealPiSigmaTargets (actions : List AtomicDecl) (ts : List AtomicDecl) : List AtomicDecl :=
   if isPiSigmaDual ts then
-    let ctor? : Option AtomicDecl :=
-      actions.find? (fun a => match a with
-                              | .declareConstructor c T => T == "Pi"
-                              | _ => false)
-    let elim? : Option AtomicDecl :=
-      actions.find? (fun a => match a with
-                              | .declareEliminator e T => T == "Pi"
-                              | _ => false)
+      let ctor? : Option AtomicDecl :=
+        actions.find? (fun a => match a with
+                                | .declareConstructor _c T => T == "Pi"
+                                | _ => false)
+      let elim? : Option AtomicDecl :=
+        actions.find? (fun a => match a with
+                                | .declareEliminator _e T => T == "Pi"
+                                | _ => false)
     let comp? : Option AtomicDecl :=
       match elim?, ctor? with
       | some (.declareEliminator e _), some (.declareConstructor c _) =>
