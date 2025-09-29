@@ -58,6 +58,17 @@ abbrev History := List Tick
 @[inline] def barResonance (beta : Float) (h : History) : Float :=
   beta * omega h
 
+/-- Global bar per the new axioms: Bar(τ) = Φ(τ) · Ω(τ−1) with Φ(τ)=τ/τ<.
+    If no previous realization exists, Bar(τ)=0. -/
+@[inline] def barGlobal (tau : Nat) (lastRealizedTau? : Option Nat) (h : History) : Float :=
+  match lastRealizedTau? with
+  | none      => 0.0
+  | some tauPrev =>
+      if tauPrev = 0 then 0.0
+      else
+        let phi : Float := (Float.ofNat tau) / (Float.ofNat tauPrev)
+        phi * omega h
+
 /-- Last element of a list, if any. -/
 def last1? {α} : List α → Option α
   | []        => none

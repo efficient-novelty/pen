@@ -164,7 +164,8 @@ def checkNoveltyCertBasic {pre : Context} (nc : NoveltyCert pre) : Summary :=
 def checkNoveltyCertAgainstScope
   {pre : Context} (nc : NoveltyCert pre)
   (scope : ScopeConfig) (maxDepthX : Nat) : Summary :=
-  let rep? := noveltyForPackage? pre nc.pkg.targets scope maxDepthX
+  let I := PEN.Novelty.Novelty.interfaceBasis []
+  let rep? := noveltyForPackage? pre nc.pkg.targets scope I maxDepthX
   match rep? with
   | none =>
       mkSummary [ { label := "replay:report", ok := false } ]

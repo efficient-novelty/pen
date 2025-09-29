@@ -104,8 +104,8 @@ structure NoveltyCert (pre : Context) where
 deriving Repr
 
 /-- Sum the numeric novelty contributions from a list of frontier entries. -/
-@[inline] def sumFrontierContribs (post : Context) (es : List FrontierEntry) : Nat :=
-  PEN.Novelty.Scope.sumContribWithCaps post es
+@[inline] def sumFrontierContribs (_post : Context) (es : List FrontierEntry) : Nat :=
+  PEN.Novelty.Scope.sumContrib01 es
 
 /-- Smart constructor from a `PackageCert` and a `NoveltyReport`. -/
 @[inline] def mkNoveltyCertFromReport
