@@ -42,9 +42,6 @@ open PEN.Core.Levels
 
 @[inline] def levelEnv : LevelEnv := defaultLevelEnv
 
-@[inline] def noveltyH : Nat := 2   -- Axiom 3 yardstick: local novelty gauge
-
-
 /-! ## Engine configuration and state -/
 
 /-- Which acceptance bar to use. -/
@@ -97,7 +94,9 @@ structure EngineState where
   H        : Nat      := 2
   history  : History  := []
   τ        : Nat      := 1
-  beta     : Float    := PEN.Select.Bar.phi
+  beta     : Float    := PEN.Select.Bar.phi          -- kept for compatibility with alternate bars
+  lastRealizedTau? : Option Nat := none
+  layers   : List (List PEN.Novelty.Scope.Target) := []
 deriving Repr, Inhabited
 
 @[inline] def updateBetaOnIdle (β : Float) : Float :=
@@ -398,13 +397,18 @@ deriving Repr
       if seen then acc else acc ++ [e])
     []
 
+/-- Extract the post-frontier targets (schemas) realized with a candidate. -/
+@[inline] def frontierTargets (es : List PEN.Novelty.Scope.FrontierEntry)
+  : List PEN.Novelty.Scope.Target :=
+  es.map (·.target)
+
 /-- Build the ScopeConfig for a package at the current horizon. -/
 @[inline] def mkScope (pkg : Pkg) (H : Nat) (_hist : History) : ScopeConfig :=
   { actions       := pkg.actions
     enumerators   := pkg.enumerators
     horizon       := H
     preMaxDepth?  := some H
-    postMaxDepth? := some 1        -- Axiom 3: radius‑1 frontier only
+    postMaxDepth? := some H
     exclude       := pkg.targets
     excludeKeys   :=
       PEN.Novelty.Scope.dedupBEq
@@ -627,9 +631,10 @@ def pruneAfterAccept (accepted : List XOutcome) : List XOutcome :=
 
 
 /-- Evaluate a discovered X: novelty with immediate frontier, plus bar & overshoot. -/
-def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (beta : Float) (hist : History) (X : DiscoveredX)
+def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X : DiscoveredX)
   : Option XOutcome :=
   /- classify the bundle X -/
+  let B := st.B
   let _isUnitSingleton : Bool :=
     X.targets.length = 1 && X.targets.any isUnitTF
 
@@ -723,22 +728,22 @@ def evalX? (cfg : DiscoverConfig) (B : Context) (H : Nat) (beta : Float) (hist :
 
   let sc : ScopeConfig :=
     { actions       := actions'''
-      horizon       := noveltyH         -- fixed novelty gauge
-      preMaxDepth?  := some noveltyH
-      postMaxDepth? := some 1
+      horizon       := H
+      preMaxDepth?  := some H
+      postMaxDepth? := some H
       exclude       := targetsCore
       excludeKeys   := exKeys }
   let targetsFinal :=
     sealPiSigmaTargets actions''' targetsCore
 
-  match PEN.Novelty.Novelty.noveltyForPackage? B targetsFinal sc (maxDepthX := H) with
+  let I := PEN.Novelty.Novelty.interfaceBasis st.layers
+  match PEN.Novelty.Novelty.noveltyForPackage? B targetsFinal sc I (maxDepthX := H) with
     | none => none
     | some rep0 => do
         let rep := rep0
         let diag := (PEN.Novelty.Scope.Debug.frontierWithDiag B rep.post sc).2
         if cfg.debugFrontier then
           dbg_trace (PEN.Novelty.Scope.Debug.render diag)
-        let bar := acceptanceBar cfg.barMode beta hist
         let δ   := rep.rho - bar
         let usedLvls :=
           let raw := X.steps.map (levelOfDecl levelEnv)
@@ -761,7 +766,7 @@ deriving Repr
     - accept only those with ρ > bar
     - prefer **attached** work (if any); else keep all accepted
     - among that pool, pick **minimal overshoot**; tie-break by minimal κ
-    - choose a single deterministic winner. -/
+    - realize all ties (superposition) when κ is also tied. -/
 def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDecision :=
   match cands with
   | [] => XTickDecision.idle 0.0 none
@@ -782,9 +787,7 @@ def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDe
       | w1 :: ws =>
         let κmin := (w1 :: ws).foldl (fun m e => if e.report.kX < m then e.report.kX else m) w1.report.kX
         let winners := (w1 :: ws).filter (fun e => e.report.kX = κmin)
-        match winners with
-        | w :: _ => XTickDecision.realized [w]
-        | []     => XTickDecision.idle barVal none
+        XTickDecision.realized winners
       | [] => XTickDecision.idle barVal none
 
 /-- Apply realization of discovered X’s (superposition allowed). -/
@@ -794,12 +797,16 @@ def applyRealizationX (st : EngineState) (winners : List XOutcome) : EngineState
   let nuSum  := winners.foldl (fun s e => s + e.report.nu) 0
   let kSum   := winners.foldl (fun s e => s + e.report.kX) 0
   let hist'  := pushTick st.history nuSum kSum
-  { st with B := B', H := 2, history := hist' }
+  let Lnew   := winners.bind (fun w => frontierTargets w.report.frontier)
+  { st with
+      B := B', H := 2, history := hist',
+      lastRealizedTau? := some st.τ,
+      layers := (PEN.Novelty.Scope.dedupBEq Lnew) :: st.layers.take 1 }
 
 /-- One tick in discovery mode (no curated packages). -/
 def tickDiscover (cfg : DiscoverConfig) (st : EngineState) : XTickResult :=
   let τ := st.τ
-  let barNow := acceptanceBar cfg.barMode st.beta st.history
+  let barNow := PEN.Select.Bar.barGlobal st.τ st.lastRealizedTau? st.history
   let gatedIdle := match cfg.schedule with
                    | .fibonacci => !isFib τ
                    | .none      => false
@@ -842,12 +849,11 @@ let admissible : List DiscoveredX :=
     let evals : List XOutcome := dedupXByTargets <|
       admissible.foldl
         (fun acc X =>
-          match evalX? cfg st.B H st.beta st.history X with
+          match evalX? cfg st H barNow X with
           | some e => acc ++ [e]
           | none   => acc)
         []
     -- select winners
-    let barNow := acceptanceBar cfg.barMode st.beta st.history
     let decision :=
       if evals.isEmpty then
         XTickDecision.idle barNow none
@@ -874,9 +880,10 @@ def runNTicksDiscover (cfg : DiscoverConfig) (st0 : EngineState) (n : Nat)
   loop n st0 []
 
 /-- Try to evaluate a package under budget H; returns none if κ(X|B) > H or search fails. -/
-def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (beta : Float) (hist : History) (pkg : Pkg)
+def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
   : Option EvalOutcome :=
 
+  let B := st.B
   -- Skip packages that are already installed.
   if targetsHold B pkg.targets then
     none
@@ -987,19 +994,19 @@ def evalPkg? (B : Context) (H : Nat) (mode : BarMode) (beta : Float) (hist : His
                  ++ hostSuppress
                  ++ elimSuppress)
 
+            let I := PEN.Novelty.Novelty.interfaceBasis st.layers
             let sc : ScopeConfig :=
               { actions       := actionsAug
-                horizon       := noveltyH
-                preMaxDepth?  := some noveltyH
-                postMaxDepth? := some 1
+                horizon       := H
+                preMaxDepth?  := some H
+                postMaxDepth? := some H
                 exclude       := targetsSealed
                 excludeKeys   := exKeys }
 
-            match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc (maxDepthX := H) with
+            match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc I (maxDepthX := H) with
             | none => none
             | some rep0 =>
                 let rep := rep0
-                let bar := acceptanceBar mode beta hist
                 let δ   := rep.rho - bar
                 some { pkg := pkg, report := rep, bar := bar, overshoot := δ }
 
@@ -1051,12 +1058,16 @@ def applyRealization (st : EngineState) (winners : List EvalOutcome) : EngineSta
   let nuSum  := winners.foldl (fun s e => s + e.report.nu) 0
   let kSum   := winners.foldl (fun s e => s + e.report.kX) 0
   let hist'  := pushTick st.history nuSum kSum
-  { st with B := B', H := 2, history := hist' }
+  let Lnew   := winners.bind (fun w => frontierTargets w.report.frontier)
+  { st with
+      B := B', H := 2, history := hist',
+      lastRealizedTau? := some st.τ,
+      layers := (PEN.Novelty.Scope.dedupBEq Lnew) :: st.layers.take 1 }
 
 /-- One selection step: evaluate, compare to bar, realize or idle, and update state. -/
 def tick (cfg : EngineConfig) (st : EngineState) : TickResult :=
   let τ := st.τ
-  let barNow := acceptanceBar cfg.barMode st.beta st.history
+  let barNow := PEN.Select.Bar.barGlobal st.τ st.lastRealizedTau? st.history
   let gatedIdle := match cfg.schedule with
                    | .fibonacci => !isFib τ
                    | .none      => false
@@ -1069,7 +1080,7 @@ def tick (cfg : EngineConfig) (st : EngineState) : TickResult :=
     let evals : List EvalOutcome := dedupByTargets <|
       cfg.pkgs.foldl
         (fun acc pkg =>
-          match evalPkg? st.B H cfg.barMode st.beta st.history pkg with
+          match evalPkg? st H barNow pkg with
           | some e => acc ++ [e]
           | none   => acc)
         []

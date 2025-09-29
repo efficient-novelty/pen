@@ -52,11 +52,12 @@ def actionsUnit : List AtomicDecl :=
       { actions := actionsUnit
       , horizon := H
       , preMaxDepth?  := some H
-      , postMaxDepth? := some 1
+      , postMaxDepth? := some H
       , exclude       := [declareTypeFormer "Unit"]
       , excludeKeys   := PEN.Novelty.Scope.keysOfTargets [declareTypeFormer "Unit"]
                         ++ [PEN.Novelty.Scope.FrontierKey.elim "Unit"] }
-    match noveltyForPackage? B [declareTypeFormer "Unit"] sc with
+    let I := interfaceBasis []
+    match noveltyForPackage? B [declareTypeFormer "Unit"] sc I with
     | none   => "NOVELTY_FAIL"
     | some r => s!"ν(Unit)={r.nu}  (expected 2)"
 
@@ -72,12 +73,13 @@ def actionsUnit : List AtomicDecl :=
       { actions := acts
       , horizon := H
       , preMaxDepth?  := some H
-      , postMaxDepth? := some 1
+      , postMaxDepth? := some H
       , exclude       := []
       , excludeKeys   :=
           PEN.Novelty.Scope.keysOfTargets [declareConstructor "star" "Unit"]
           ++ [PEN.Novelty.Scope.FrontierKey.elim "Unit"] }
-    match noveltyForPackage? B [declareConstructor "star" "Unit"] sc with
+    let I := interfaceBasis []
+    match noveltyForPackage? B [declareConstructor "star" "Unit"] sc I with
     | none   => "NOVELTY_FAIL"
     | some r => s!"ν(star)={r.nu}  (expected 2)"
 

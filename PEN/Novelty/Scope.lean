@@ -260,7 +260,7 @@ structure ScopeConfig where
   enumerators  : List FrontierEnumerator := []  -- kept for API stability, unused now
   horizon      : Nat
   preMaxDepth? : Option Nat := none             -- same-budget κ_pre truncation
-  postMaxDepth?: Option Nat := some 1             -- Axiom 3
+  postMaxDepth?: Option Nat := none             -- defaults to horizon if unspecified
   exclude      : List AtomicDecl := []
   excludeKeys  : List FrontierKey := []           -- schema-key excludes (new)
 deriving Inhabited
@@ -272,6 +272,9 @@ instance : Repr ScopeConfig where
 
 @[inline] def preMaxDepth (cfg : ScopeConfig) : Nat :=
   cfg.preMaxDepth?.getD cfg.horizon
+
+@[inline] def postMaxDepth (cfg : ScopeConfig) : Nat :=
+  cfg.postMaxDepth?.getD cfg.horizon
 
 /-! ## Small list helpers (BEq-based dedup/filter) -/
 
@@ -338,7 +341,7 @@ def gatherTargets (post : Context) (cfg : ScopeConfig) : List Target :=
 -/
 def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
   let _H := cfg.horizon
-  let postBound := cfg.postMaxDepth?.getD 1
+  let postBound := postMaxDepth cfg
   let preBound := preMaxDepth cfg
   let ts := gatherTargets post cfg
 
@@ -371,6 +374,12 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
 @[inline] def contribWithCap (cap : Nat) (e : FrontierEntry) : Nat :=
   let kpre := Nat.min e.kPreEff cap
   if kpre > e.kPost then kpre - e.kPost else 0
+
+@[inline] def contrib01 (e : FrontierEntry) : Nat :=
+  if e.kPreEff > e.kPost then 1 else 0
+
+@[inline] def sumContrib01 (es : List FrontierEntry) : Nat :=
+  es.foldl (fun s e => s + contrib01 e) 0
 
 @[inline] def sumContribWithCaps (post : Context) (es : List FrontierEntry) : Nat :=
   es.foldl (fun s e =>
@@ -451,7 +460,7 @@ def dedupFrontierByKeyWithDrops (es : List FrontierEntry)
 def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
   : List FrontierEntry × FrontierDiag :=
   let _H        := cfg.horizon
-  let postBound := cfg.postMaxDepth?.getD 1
+  let postBound := postMaxDepth cfg
   let preBound  := preMaxDepth cfg
 
   -- Stage 1: enumerate targets (actions only, but keep those excluded by name for diagnostics)
@@ -503,7 +512,7 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
   let contributions : List (Target × FrontierKey × Nat) :=
     finalEntries.map (fun e =>
       let k := keyOfTarget e.target
-      let d := contribWithCap (capForKeyWithPost post k) e
+      let d := contrib01 e
       (e.target, k, d))
   let nuSum : Nat := contributions.foldl (fun s (_,_,d) => s + d) 0
 

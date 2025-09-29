@@ -20,7 +20,6 @@ import PEN.CAD.Atoms
 import PEN.Novelty.Scope
 import PEN.CAD.Kappa
 import PEN.Select.Discover
-import PEN.Select.Effort
 
 namespace PEN.Novelty.Novelty
 
@@ -28,6 +27,14 @@ open PEN.CAD
 open PEN.Novelty.Scope
 -- Avoid opening Discover to prevent clashes with helper names like `dedupBEq`.
 open AtomicDecl
+
+/-- Interface basis from the last two layers, newest first in `layers`. -/
+def interfaceBasis (layers : List (List Target)) : List Target :=
+  PEN.Novelty.Scope.dedupBEq ((layers.take 2).join)
+
+/-- Interaction profile J(X,B): filters Iₙ by applicability to X (syntactic dependency proxy). -/
+def interactionProfile (I : List Target) (targetsX : List AtomicDecl) : List Target :=
+  I.filter (fun ϕ => dependsOnTargets ϕ targetsX)
 
 /-- What we report back to the engine after evaluating a package X. -/
 structure NoveltyReport where
@@ -201,9 +208,8 @@ def frontierAll (actions : List AtomicDecl)
       Key-aware frontier
 ############################# -/
 
-@[inline] def gainWithCaps (post : Context) (e : FrontierEntry) : Nat :=
-  let k := keyOfTarget e.target
-  contribWithCap (capForKeyWithPost post k) e
+@[inline] def gain01 (e : FrontierEntry) : Nat :=
+  contrib01 e
 
 /-- Reduce entries to one per key, keeping maximal novelty gain; ties by minimal kPost. -/
 def reduceByKeyMaxGain (post : Context) (es : List FrontierEntry) : List FrontierEntry :=
@@ -214,8 +220,8 @@ def reduceByKeyMaxGain (post : Context) (es : List FrontierEntry) : List Frontie
     | (kOld, eOld) :: rest =>
         if kOld == kNew then
           let eBest :=
-            if gainWithCaps post eNew > gainWithCaps post eOld then eNew
-            else if gainWithCaps post eNew == gainWithCaps post eOld && eNew.kPost < eOld.kPost then eNew
+            if gain01 eNew > gain01 eOld then eNew
+            else if gain01 eNew == gain01 eOld && eNew.kPost < eOld.kPost then eNew
             else eOld
           (kOld, eBest) :: rest
         else
@@ -225,8 +231,8 @@ def reduceByKeyMaxGain (post : Context) (es : List FrontierEntry) : List Frontie
 
 def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry :=
   let H          := sc.horizon
-  let preBudget  := sc.preMaxDepth?.getD H
-  let postBudget := sc.postMaxDepth?.getD H
+  let preBudget  := preMaxDepth sc
+  let postBudget := postMaxDepth sc
   let acts       := PEN.Novelty.Scope.dedupBEq sc.actions
   let cands      := acts.filter (fun y =>
     (not (PEN.Novelty.Scope.memBEq y sc.exclude))
@@ -251,7 +257,7 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
 
 
 def noveltyFromFrontier (post : Context) (es : List FrontierEntry) : Nat :=
-  sumContribWithCaps post es
+  sumContrib01 es
 
 /-! ############################
      Package evaluation (X)
@@ -262,6 +268,7 @@ def noveltyForPackage?
     (B : Context)
     (targets : List AtomicDecl)
     (sc : ScopeConfig)
+    (I  : List Target)
     (maxDepthX : Nat := sc.horizon) : Option NoveltyReport :=
 
   let goal := goalAll targets
@@ -269,20 +276,16 @@ def noveltyForPackage?
   let rawBound := maxDepthX + liftForSealedDual targets
   match iddfsMin sc.actions goal rawBound B with
   | none => none
-  | some (_, post) =>
+  | some (kDeriv, post) =>
     let es := frontierAllScoped B post sc
-    let nuCore := PEN.Novelty.Scope.sumContribWithCaps post es
-
-    -- Essential effort per Axiom 2
-    let ϵ := PEN.Select.Effort.effortOfTargets targets
-
-    -- Axiom 3′: TF-only packages earn a +1 bonus
-    let tfBonus := if PEN.Novelty.Scope.allTFOnly targets then 1 else 0
-    let ν := nuCore + tfBonus
-    let effort := ϵ.total
-    let ρ := if effort = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat effort)
+    let nuCore := PEN.Novelty.Scope.sumContrib01 es
+    let J := interactionProfile I targets
+    let kX := kDeriv + J.length
+    let tfBonus := 0
+    let ν := nuCore
+    let ρ := if kX = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kX)
     some { post := post
-         , kX := effort
+         , kX := kX
          , frontier := es
          , nuCore := nuCore
          , tfBonus := tfBonus
