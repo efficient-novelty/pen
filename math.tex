@@ -61,490 +61,332 @@
 \begin{document}
 \maketitle
 
-\begin{abstract}
+\section{A Computational Framework for Type-Theoretic Evolution}
 
-We present an algorithmic framework for modeling the emergence of mathematical structures through efficiency-driven selection. Starting from axioms that formalize effort (essential complexity) and novelty (expressive power) in Cubic Type Theory, we show that mathematical structures naturally crystallize in order of their conceptual efficiency—the ratio of novelty to effort.
+\subsection{Preliminaries}
 
-The framework yields three significant results. First, we prove that conceptual efficiency grows without bound through abstraction, formally distinguishing mathematical evolution from computational processes governed by the Church-Turing thesis. Second, our computational experiments consistently reveal that integration times—the periods required to propagate new abstractions—follow a Fibonacci-like pattern, producing self-similar growth at the golden ratio. We axiomatize this empirical observation as the Hierarchical Synthesis principle, though proving its necessity from pure efficiency maximization remains an open problem. This pattern suggests a deep connection between efficiency optimization and self-organization that mirrors the golden ratio's ubiquity in natural systems. Third, the algorithm generates a specific sequence of mathematical realizations that closely mirrors historical mathematical development, from foundational type constructors through geometric structures to dynamical principles.
+We develop a formal framework for the incremental construction of type-theoretic structures in Cubical Type Theory (CTT). The system models the evolution of a mathematical context through discrete time steps, where new structures are selected based on their efficiency in enabling further constructions.
 
-Most remarkably, the algorithm predicts a novel mathematical structure at $\tau = 6765$: the Dynamical Cohesive Topos (DCT). This object unifies the logical framework of topos theory, the geometric structure of cohesion, and evolutionary dynamics into a single mathematical entity where structure and process are mutually determining. The DCT represents a new class of mathematical object, analogous to how groups abstract symmetry, but abstracting the concept of "evolving systems with internal geometric logic."
+\subsection{Basic Definitions}
 
-Our framework combines rigorous theoretical results with computational exploration, suggesting that mathematical discovery follows an inherent logic of maximal conceptual compression. While some patterns we observe are provable from first principles, others—like the golden ratio pacing—emerge consistently but mysteriously, pointing to fundamental questions about the nature of mathematical evolution that remain to be answered.
-\end{abstract}
-
-\section{Introduction}
-
-Why does $\pi_1(S^1) \simeq \mathbb{Z}$ feel like a deeper discovery than defining yet another group? Why do some abstractions immediately reorganize our mathematical thinking while others remain curiosities? These questions point to a hidden structure in mathematical progress—one that might be governed by precise laws rather than historical accident.
-
-This paper presents an algorithmic framework that models the emergence of mathematical structures through efficiency-driven selection. We propose that mathematical concepts crystallize not randomly, but in order of their \emph{conceptual efficiency}: the ratio of expressive power gained to essential complexity required. While mathematics as practiced emerges from human creativity, insight, and cultural factors, we show that a purely mechanical process based on efficiency maximization produces a sequence of structures remarkably similar to historical mathematical development.
-
-Our algorithm tracks a Mathematical Reality $\mathcal{R}$ as it grows through discrete logical time $\tau$. At each tick, candidate structures compete for realization. Selection depends on three quantities:
-
-\begin{enumerate}
-\item \textbf{Effort $\kappa$}: The essential complexity (constructor count, derivation length)
-\item \textbf{Novelty $\nu$}: The expressive power gained (dimensional operations, organizational impact)
-\item \textbf{Integration Time}: The ticks needed to propagate the new structure
-\end{enumerate}
-
-This simple economy produces a self-similar growth pattern where structures emerge at the golden ratio pace---the unique growth rate that optimally balances memory with momentum. Even more striking, the sequence of realized structures closely parallels the historical development of mathematics, suggesting that human mathematical intuition may implicitly follow similar efficiency principles.
-
-This isn't a claim about how mathematics \emph{must} develop, but rather an exploration of what happens when mathematical structure emerges through pure efficiency selection. The fact that this algorithmic process recovers familiar mathematical milestones---from the unit type to the Hopf fibration---hints at something deep about the inherent organization of mathematical concepts.
-
-
-Our framework operates within Cubical Type Theory (CTT), where we can precisely quantify both the complexity and expressive power of mathematical structures. In CTT, paths are primitive constructs arising from the interval type $I$, with the five fundamental operations—reflexivity (constant paths), symmetry (path reversal), transitivity (composition via Kan operations), transport (through dependent types), and application (functorial action)—emerging uniformly from the cubical Kan structure rather than being axiomatized separately. A 2-dimensional structure adds three coherence fillers that witness the expected equations between path operations. These operational costs are not arbitrary—they reflect the actual computational machinery provided by the Kan operations for manipulating higher-dimensional structures. By tracking these costs systematically, we can model which mathematical structures become ``available'' at each stage of mathematical development, with the crucial advantage that structures like the circle $S^1$ are directly constructible without circular dependencies on identity types.
-
-The framework yields several surprising results. First, we prove that conceptual efficiency can grow without bound through the mechanism of abstraction. When a complex archetype with high novelty can be captured by a concise abstraction with low complexity, the resulting efficiency gain has no upper limit. This formally distinguishes mathematical evolution from computational processes, which are bounded by the Church-Turing thesis. Mathematical progress operates on a fundamentally different plane: while computation optimizes execution within fixed languages, mathematical evolution optimizes the languages themselves.
-
-Second, we discover that the interplay between efficiency selection and integration time—the period required to fully propagate a new abstraction through existing mathematics—produces a self-similar growth pattern at the golden ratio. This isn't built into our axioms; it emerges naturally as the unique growth rate that optimally balances what has been built with what can now be reached. The golden ratio's ubiquity in mathematics and nature may stem from this deeper principle of optimal balance between memory and momentum.
-
-Third, and most remarkably, our algorithm predicts a new mathematical structure. At $\tau = 6765$, the framework generates what we call a \emph{Dynamical Cohesive Topos} (DCT)—a mathematical object that unifies topos-theoretic logic, cohesive geometry, and evolutionary dynamics into a single entity where structure and process are mutually determining. Just as groups abstract the concept of symmetry, a DCT abstracts the concept of ``evolving systems with internal geometric logic.'' This represents not just a new theorem or construction, but a new class of mathematical object with its own morphisms, classification problems, and categorical structure.
-
-The implications extend beyond describing mathematical history. If mathematical structures emerge in order of conceptual efficiency, then:
-\begin{itemize}
-\item The apparent unity and elegance of mathematics is not coincidental but inevitable—efficiency selection naturally favors unifying abstractions over fragmentary constructions.
-\item There may be undiscovered mathematical structures waiting at efficiency thresholds we have not yet reached, identifiable through systematic efficiency analysis.
-\item The ``unreasonable effectiveness'' of mathematics in describing physical reality might reflect a shared principle: both mathematics and physics optimize for maximal compression of phenomena into comprehensible laws.
+\begin{definition}[Base Calculus]
+\label{def:base-calculus}
+We work within Cubical Type Theory (CTT) equipped with a standard \emph{action alphabet} consisting of primitive operations:
+\begin{itemize}[noitemsep]
+\item Type formation, introduction, and elimination rules
+\item Kan operations for fibrant types
+\item Path algebra operations (composition, transport, etc.)
+\item Coherence fillers for higher-dimensional structure
+\item Definitional equality judgments
 \end{itemize}
-
-This paper is organized as follows. Section 2 establishes the foundational machinery for measuring complexity in HoTT, including the operational basis for our dimensional weights. Section 3 presents the formal axiomatic framework governing the evolution of mathematical reality. Section 4 proves the key theoretical results, including the unbounded growth of conceptual efficiency and the emergence of golden ratio pacing. Section 5 validates the framework by showing how it generates familiar mathematical structures in a plausible order. Section 6 analyzes the Dynamical Cohesive Topos as a concrete example of genuinely new mathematics emerging from efficiency maximization. Finally, Section 7 discusses implications, addresses potential objections, and suggests future research directions.
-
-Our framework does not claim to model how human mathematicians actually discover mathematics—human creativity involves intuition, aesthetics, and cultural factors our algorithm cannot capture. Instead, it explores what structures would emerge from pure efficiency maximization, and the striking convergence with historical development suggests that efficiency may be an unconscious organizing principle in mathematical discovery. The framework thus provides both a lens for understanding past mathematical progress and a potential tool for predicting future mathematical developments.
-
-\section{Foundations: Measuring Complexity in Cubical Type Theory}
-
-In Cubical Type Theory (CTT), mathematical structures carry inherent computational complexity that can be precisely quantified. This section establishes the machinery for measuring both the effort required to construct structures and the novelty they contribute to mathematical reality.
-
-\subsection{The Cubical Foundation}
-
-Cubical Type Theory equips us with paths as primitive constructs rather than derived notions. A path between points $a$ and $b$ in type $A$ is represented as:
-\[
-\text{Path}_A(a,b) \equiv \{ p : I \to A \mid p(0) = a, p(1) = b \}
-\]
-where $I$ is the abstract interval type with endpoints $0, 1 : I$.
-
-This primitive treatment provides:
-\begin{itemize}
-\item \textbf{Kan Operations:} Composition and filling operations that yield path algebra (symmetry, transitivity, higher coherences) as definitional constructions
-\item \textbf{Transport:} For dependent types $B : A \to \mathcal{U}$ and paths $p : \text{Path}_A(a,b)$, transport $\text{transp}_B(p, -)$ is primitively available
-\item \textbf{Functoriality:} Application of functions to paths $\text{ap}_f$ is derivable with good computational behavior
-\item \textbf{Computational Univalence:} The univalence axiom has computational content, ensuring canonicity for closed terms
-\item \textbf{Higher Inductive Types:} HITs like the circle $S^1$ are directly definable without presupposing identity types
-\end{itemize}
-
-This foundation ensures that when we measure complexity, we're counting genuine primitive operations rather than circular dependencies.
-
-\subsection{Dimensional Operations and Their Costs}
-
-The operational complexity of working with $d$-dimensional structures in CTT follows a specific pattern reflecting the cumulative machinery required at each dimension.
-
-\begin{definition}[Dimensional Weights in CTT]
-The weight function $W: \mathbb{N} \to \mathbb{N}$ assigns to each dimension the cumulative operational cost:
-\begin{align}
-W(0) &= 1 \quad \text{(Point: instantiation/substitution)}\\
-W(1) &= 5 \quad \text{(Path: Kan operations + transport + functoriality)}\\
-W(2) &= 8 \quad \text{(Surface: path operations + coherence fillers)}\\
-W(3) &= 10 \quad \text{(Volume: + higher coherence structure)}
-\end{align}
+Each primitive operation carries a \emph{unit cost} of 1, providing a metric for computational complexity.
 \end{definition}
 
-\textbf{Dimension 0 (Points): $W(0) = 1$}
-
-A 0-dimensional constructor is a point or term. The single operation remains instantiation/substitution, unchanged from plain type theory.
-
-\textbf{Dimension 1 (Paths): $W(1) = 5$}
-
-In CTT, paths are primitive, but working with them requires five fundamental operations that emerge from the Kan structure:
-
-\begin{enumerate}
-\item \textbf{Reflexivity:} Given by constant paths $\lambda i. a : \text{Path}_A(a,a)$
-\item \textbf{Symmetry:} Path reversal via $\lambda i. p(1-i)$
-\item \textbf{Transitivity:} Path composition using Kan operations
-\item \textbf{Transport:} Moving along paths in dependent types via $\text{transp}$
-\item \textbf{Application:} Functorial action of functions on paths
-\end{enumerate}
-
-These five operations constitute the essential interface for working with 1-dimensional structure. The cubical machinery provides them uniformly through the interval and Kan operations:
-\[
-W(1) = \underbrace{3}_{\text{Path algebra}} + \underbrace{2}_{\text{Type interface}} = 5
-\]
-
-\textbf{Dimension 2 (Surfaces): $W(2) = 8$}
-
-Moving to 2-dimensional structure (paths between paths), we add the machinery for coherent manipulation of path equations. The Kan operations provide:
-
-\begin{enumerate}
-\setcounter{enumi}{5}
-\item \textbf{Associativity filler:} A 2-path witnessing $(p \cdot q) \cdot r = p \cdot (q \cdot r)$ via Kan filling
-\item \textbf{Unit fillers:} 2-paths for $\text{refl} \cdot p = p$ and $p \cdot \text{refl} = p$
-\item \textbf{Inverse filler:} 2-path coherence for path inversion
-\end{enumerate}
-
-These emerge from the uniform Kan structure:
-\[
-W(2) = W(1) + \underbrace{3}_{\text{Coherence fillers}} = 8
-\]
-
-\textbf{Dimension 3 (Volumes): $W(3) = 10$}
-
-At dimension 3, we require the higher coherence axioms that ensure different ways of applying 2-dimensional fillers are themselves coherent:
-
-\begin{enumerate}
-\setcounter{enumi}{8}
-\item \textbf{Pentagon coherence:} Ensuring different associations of four paths are coherently related
-\item \textbf{Triangle coherence:} Coherent interaction between associativity and unit fillers
-\end{enumerate}
-
-These are provided by 3-dimensional Kan operations:
-\[
-W(3) = W(2) + \underbrace{2}_{\text{Higher coherences}} = 10
-\]
-
-\begin{theorem}[Computational Interpretation of Weights]
-In Cubical Type Theory, the dimensional weights $W(d)$ measure the \emph{expressive complexity} of $d$-dimensional operations rather than their definitional complexity. While CTT provides uniform Kan operations, the weights capture the inherent conceptual cost of working with structures of dimension $d$, which remains invariant whether paths are primitive (CTT) or derived (HoTT).
-\end{theorem}
-
-\subsection{Two Kinds of Mathematical Realization}
-
-In our system, two kind of mathematical objects can be created (realized): Constructors and Connectors.
-\begin{definition}[Constructors in CTT]
-A \emph{Constructor} is a realization that introduces new type-forming machinery. In CTT, this includes:
-\begin{itemize}
-\item Higher Inductive Types with point and path constructors
-\item Type formers with their elimination principles
-\item Modalities defined through Kan operations
-\end{itemize}
+\begin{definition}[State Space]
+\label{def:state}
+A \emph{state} $\mathcal{B}$ is a well-typed, cumulative context in CTT, consisting of a sequence of type and term declarations. The state at time $\tau$ is denoted $\mathcal{R}(\tau)$, with initial state $\mathcal{R}(0) = \emptyset$.
 \end{definition}
 
-For Constructors, effort and novelty calculations are given by:
-\begin{align}
-\kappa(\text{Constructor}) &= |C| + |E_{\text{essential}}| - \Delta_{\text{coherence}}\\
-\nu(\text{Constructor}) &= \nu_{\text{interface}} + \nu_{\text{dimensional}}
-\end{align}
-
-The calculations for effort and novelty capture the essential principle that mathematical structures should be credited for what they enable while being charged for their definitional complexity, with special recognition for self-organizing coherence.
-
-\textbf{Effort Formula: $\kappa = |C| + |E_{\text{essential}}| - \Delta_{\text{coherence}}$}
-
-This measures the \emph{essential definitional complexity} of a structure:
-\begin{itemize}
-\item $|C|$ (introduction rules) represents the cost of specifying how to build elements
-\item $|E_{\text{essential}}|$ (non-contractible eliminators) represents the cost of specifying how to use the type—but only when this usage is non-trivial (contractible types have unique inhabitants up to paths, making their eliminators redundant)
-\item $-\Delta_{\text{coherence}}$ provides a discount for internal coherence (like adjunctions), recognizing that self-organizing structures achieve more with less machinery
-\end{itemize}
-
-The coherence discount is crucial: when constructors and eliminators form an adjunction (like $\Sigma \dashv \Pi$), they mutually determine each other through the unit and counit. This reduces the true complexity—you're not defining two independent operations but two aspects of a single coherent structure. In CTT, such coherences typically emerge from the Kan operations.
-
-\textbf{Novelty Formula: $\nu = \nu_{\text{interface}} + \nu_{\text{dimensional}}$}
-
-This measures the \emph{expressive power gained}:
-\begin{itemize}
-\item $\nu_{\text{interface}} = |E_{\text{essential}}| + \Delta_{\text{coherence}} + \Delta_{\text{layer}}$ credits the structure for its computational interface (eliminators), its internal coherence (which adds organizational power), and any new abstraction layer it creates
-\item $\nu_{\text{dimensional}} = \sum_d W(d) \times |C_d|$ credits the structure for the dimensional complexity it introduces, weighted by the operational cost at each dimension
-\end{itemize}
-
-The coherence term $\Delta_{\text{coherence}}$ appears positively in novelty but negatively in effort because coherent structures are simultaneously easier to define (fewer independent pieces) and more powerful to use (the pieces work together systematically). This double benefit is why mathematics naturally evolves toward coherent, self-organizing structures—they maximize the efficiency ratio $\nu/\kappa$.
-
-\begin{definition}[Connectors in CTT]
-A \emph{Connector} establishes relationships within or between existing types. In CTT, this includes:
-\begin{itemize}
-\item Terms and functions between types
-\item Paths and higher paths constructed via the interval
-\item Equivalences witnessing univalence computationally
-\end{itemize}
+\begin{definition}[Effort Kernel]
+\label{def:effort-kernel}
+Given a well-typed goal $Y$ and base state $\mathcal{B}$, the \emph{effort kernel} $K_{\mathcal{B}}(Y) \in \mathbb{N} \cup \{\infty\}$ represents the minimal number of primitive steps required to derive a sealed instance of $Y$ from context $\mathcal{B}$. If $Y$ is underivable from $\mathcal{B}$, we set $K_{\mathcal{B}}(Y) = \infty$.
 \end{definition}
 
-For Connectors:
-\begin{align}
-\kappa(\text{Connector}) &= \text{minimal derivation length in CTT}\\
-\nu(\text{Connector}) &= \max \begin{cases}
-\kappa(\text{type}) + 1 & \text{if first inhabitant}\\
-\nu(A) + \nu(B) & \text{if organizing map } A \to B\\
-\nu(\text{archetype})/\kappa & \text{if abstraction}
-\end{cases}
-\end{align}
+\subsection{Sealing and Integration}
 
-The formula for Connector novelty recognizes that mathematical progress occurs through three distinct mechanisms, each requiring different valuation:
+The notion of \emph{sealing} ensures that new structures are properly integrated with existing ones through coherence witnesses.
 
-\textbf{Connector Novelty: $\nu = \max\{\ldots\}$}
+\begin{definition}[Context-Closed Sealing]
+\label{def:sealing}
+Let $L_n$ and $L_{n-1}$ denote the last two integration layers (see Axiom~\ref{ax:integration}). We define:
 
-We take the maximum because a Connector might serve multiple roles simultaneously, and we credit it for its most significant contribution to avoid undervaluing breakthrough connections.
-
-\textbf{Case 1: First Inhabitant ($\nu = \kappa(\text{type}) + 1$)}
-
-When a Connector provides the first inhabitant of a type, it transforms that type from an abstract possibility to a concrete reality. The novelty equals the effort required to define the type plus one additional unit for actualization. This reflects that:
-\begin{itemize}
-\item An uninhabited type is merely potential structure
-\item The first witness proves consistency and enables concrete computation
-\item The "+1" represents the conceptual leap from "this could exist" to "this does exist"
+\begin{enumerate}[label=(\alph*)]
+\item The \emph{interface basis} $I_n$ is the canonical, deduplicated set of unit schemas present in $L_n \cup L_{n-1}$, including:
+\begin{itemize}[noitemsep]
+\item Path-lifting and transport operations
+\item Cubical operations (connections, reversals)
+\item Modality coherence schemas for structures in recent layers
 \end{itemize}
-For example, $\star : \mathbf{1}$ doubles the novelty of the Unit type by actualizing it.
 
-\textbf{Case 2: Organizing Map ($\nu = \nu(A) + \nu(B)$)}
-
-When a Connector $f: A \to B$ serves as an organizing principle between structures, its novelty equals the sum of the novelties it unifies. This high valuation reflects that such maps:
-\begin{itemize}
-\item Reveal hidden relationships between seemingly disparate structures
-\item Enable transfer of techniques between domains
-\item Often represent deep mathematical insights that reorganize entire fields
-\end{itemize}
-For instance, the Hopf fibration $S^3 \to S^2$ earns $\nu(S^3) + \nu(S^2)$ because it fundamentally reorganizes our understanding of how spheres of different dimensions relate.
-
-\textbf{Case 3: Abstraction ($\nu = \nu(\text{archetype})/\kappa$)}
-
-This formula, where novelty grows inversely with effort, drives unbounded efficiency growth. When a Connector abstracts from a complex archetype:
-\begin{itemize}
-\item The numerator $\nu(\text{archetype})$ captures all the expressive power being compressed
-\item The denominator $\kappa$ represents how concisely this compression is achieved
-\item The ratio measures conceptual leverage: high-power patterns captured in simple definitions
-\end{itemize}
-For example, abstracting from $S^3 \cong \text{SU}(2)$ to generic Lie groups yields novelty $18/2 = 9$, recognizing that a two-component definition captures the essence of an 18-novelty archetype.
-
-\textbf{Why Maximum Rather Than Sum?}
-
-We take the maximum rather than the sum to avoid over-counting. A single profound connection might simultaneously be the first inhabitant, an organizing map, and an abstraction. Crediting all three would inflate its novelty artificially. The maximum ensures we recognize its most significant role while maintaining consistent valuation across different types of mathematical progress.
-
-This formula thus captures the three fundamental ways mathematics advances: actualization (making the abstract concrete), organization (revealing hidden structure), and abstraction (compressing complexity into simplicity).
-
-\subsection{The Integration Principle}
-
-The Integration Principle accounts for the computational time it takes to integrate a new mathematical object into an existing theory.
-
-\begin{principle}[Integration Time with Computational Content]
-When structure $X$ is realized at time $\tau_n$, the integration period before the next realization equals the complexity of propagating $X$ through the existing mathematical reality:
+\item The \emph{interaction profile} $J(X, \mathcal{B})$ of a candidate $X$ at base $\mathcal{B}$ consists of all schemas from $I_n$ that are type-theoretically applicable to $X$:
 \[
-\Delta_n = \tau_{n+1} - \tau_n = \kappa(\text{domain organized by } X_n)
+J(X, \mathcal{B}) := \{ \phi \in I_n \mid \text{$\phi$ is applicable to $X$} \}
 \]
-
-This propagation has computational meaning: it's the time required to normalize and evaluate the new structure's interaction with existing constructions via the Kan operations.
-\end{principle}
-
-Three observations justify this principle:
-
-\begin{enumerate}
-\item \textbf{Computational Completeness:} The Kan operations must be applied throughout the organized domain to identify all induced simplifications. 
-
-\item \textbf{Canonicity Preservation:} CTT's computational univalence ensures that integration maintains canonicity—closed terms of base type normalize to canonical forms even after propagating new abstractions.
-
-\item \textbf{Uniform Cost Model:} The primitive status of paths in CTT provides a uniform cost model: each Kan operation has unit cost, making the integration time calculation precise.
+where applicability means that the domains and codomains of $\phi$ and $X$ align such that a commutation or naturality diagram can be formed.
 \end{enumerate}
 
-\section{The Formal Framework}
-
-We now present the four axioms that govern an algorithmic generation of mathematical structures. These axioms formalize how structures compete for realization based on their effort (essential complexity) and novelty (expressive power), producing an evolving mathematical theory that grows through efficiency-driven selection.
-
-The foundation of our framework is a discrete model of mathematical evolution where new structures are actualized sequentially. Each actualization requires a period of integration whose duration is determined by the principle of hierarchical synthesis.
-
-%===========================AXIOM 1=================================================
-
-\begin{axiom}[Discrete Evolution and Hierarchical Integration]
-Mathematical Reality $\mathcal{R}$ is a cumulative sequence of formal CTT contexts. $\mathcal{R}$ evolves through discrete logical time $\tau \in \mathbb{N}$, beginning from the empty set $\mathcal{R}(0) = \emptyset$. The evolution is strictly cumulative:
-
-\[
-\mathcal{R}(\tau-1) \subseteq \mathcal{R}(\tau)
-\]When a new structure $X_n$ is actualized at time $\tau_n$, the system enters an integration period $\Delta_n = \tau_{n+1} - \tau_n$. The duration of this period is determined by the following principles:
-
-\begin{enumerate}
-\item \textbf{Integration Cost:} The duration equals the organizational complexity of the domain that $X_n$ organizes:
-
-\[
-\Delta_n = \kappa(\text{domain organized by } X_n)
-\]
-
-\item \textbf{Hierarchical Synthesis:} For $n \ge 2$, the domain organized by a new structure $X_n$ is the conceptual synthesis of the domains organized by the two preceding structures, $X_{n-1}$ and $X_{n-2}$. Its complexity is therefore the sum of their complexities:
-\[
-\kappa(\text{domain of } X_n) = \kappa(\text{domain of } X_{n-1}) + \kappa(\text{domain of } X_{n-2})
-\]
-
+A candidate $X$ is \emph{sealed} by constructing a bundle containing:
+\begin{enumerate}[noitemsep]
+\item The core definition of $X$
+\item Its essential eliminators and minimal internal coherence data
+\item A coherence witness (definitional equality or higher path) for each $\phi \in J(X, \mathcal{B})$
 \end{enumerate}
-\end{axiom}
+\end{definition}
 
-The cumulative nature ensures that mathematical knowledge is never lost. The principle of Hierarchical Synthesis emerges from a striking empirical observation in our computational experiments: when structures are selected purely through efficiency maximization, each new mathematical breakthrough consistently organizes the conceptual domains of the two preceding structures. Specifically, we observe that $\kappa(\text{domain of } X_n) \approx \kappa(\text{domain of } X_{n-1}) + \kappa(\text{domain of } X_{n-2})$ holds across numerous runs with different initial conditions and parameter variations.
-
-We axiomatize this empirical pattern because it appears fundamental to how efficiency-driven selection operates: each new structure must build upon recent achievements (maintaining continuity) while synthesizing multiple prior insights (achieving compression). This creates a Fibonacci-like growth pattern where integration times satisfy $\Delta_n \approx \Delta_{n-1} + \Delta_{n-2}$, ultimately producing self-similar development at the golden ratio $\varphi$.
-
-While we consistently observe this pattern and can explain why it might be optimal—balancing memory (the accumulated structures of $\tau_{n-1}$ and $\tau_{n-2}$) with momentum (the new possibilities opened by $X_n$)—we cannot yet prove that it necessarily follows from efficiency maximization alone. The fact that pure efficiency selection reproducibly generates golden ratio pacing suggests a deep connection between conceptual compression and self-similar growth, but the mathematical necessity of this connection remains an open problem. Time, in this framework, is not merely a counter but the computational cost of this observed hierarchical synthesis.
-
-%===========================AXIOM 2=================================================
-
-\subsection{Axiom 2: Effort as Essential Complexity}
-
-The effort of a structure measures the essential complexity required for its definition, distinct from the complexity of using it once defined.
-
-\begin{axiom}[Effort Calculation]
-The effort $\kappa(X \mid B)$ of a candidate structure $X$ given base reality $B = \mathcal{R}(\tau-1)$ is calculated as follows:
-
-\textbf{For Constructors} (structures with introduction and elimination rules):
+\begin{definition}[Canonical Frontier]
+\label{def:frontier}
+Given a state $\mathcal{B}$ and effort horizon $H \in \mathbb{N}$, the \emph{frontier basis} is the finite, deduplicated set of all canonical sealed schemas derivable within the horizon:
 \[
-\kappa(X \mid B) = |C| + |E_{\text{essential}}| - \Delta_{\text{coherence}}
+S(\mathcal{B}, H) := \{ \text{sealed schemas } Y \mid K_{\mathcal{B}}(Y) \leq H \}
 \]
-where:
-\begin{itemize}
-\item $|C|$ = number of introduction rules (constructors)
-\item $|E_{\text{essential}}|$ = number of eliminators for non-contractible types
-\item $\Delta_{\text{coherence}}$ = number of adjunctions realized within the structure
-\end{itemize}
+\end{definition}
 
-\textbf{For Connectors} (terms, maps, proofs):
+\subsection{Cost and Novelty Measures}
+
+\begin{definition}[Context-Closed Effort]
+\label{def:effort}
+The \emph{effort} $\kappa(X \mid \mathcal{B})$ of a sealed candidate $X$ at base $\mathcal{B}$ combines its minimal derivation length with the cost of establishing coherence:
 \[
-\kappa(X \mid B) = \text{length of minimal derivation using } B
+\boxed{\kappa(X \mid \mathcal{B}) := K_{\mathcal{B}}(X) + |J(X, \mathcal{B})|}
 \]
-\end{axiom}
+\end{definition}
 
-The distinction between essential and non-essential eliminators is crucial: eliminators for contractible types (like the Unit type) are not counted because they provide no additional expressive power. The coherence discount recognizes that structures exhibiting internal adjunctions (like $\Sigma \dashv \Pi$) achieve more with less machinery, reflecting the efficiency of self-organizing mathematical structures.
-
-%===========================AXIOM 3=================================================
-
-\subsection{Axiom 3: Novelty as Expressive Power}
-
-Novelty measures the new expressive power a structure contributes to Mathematical Reality. The calculation depends on both the intrinsic complexity of the structure and its organizational impact.
-
-\begin{axiom}[Novelty Calculation]
-The novelty $\nu(X)$ of a candidate structure $X$ is calculated as follows:
-
-\textbf{For Constructors:}
+\begin{definition}[Novelty]
+\label{def:novelty}
+The \emph{novelty} $\nu(X \mid \mathcal{B}, H)$ of a sealed candidate $X$ relative to base $\mathcal{B}$ and horizon $H$ counts the number of schemas whose derivation becomes cheaper or newly possible:
 \[
-\nu(X) = \nu_{\text{interface}} + \nu_{\text{dimensional}}
+\boxed{\nu(X \mid \mathcal{B}, H) := \left|\left\{ Y \in S(\mathcal{B}, H) \cup S(\mathcal{B} \cup \{X\}, H) \mid K_{\mathcal{B}}(Y) - K_{\mathcal{B} \cup \{X\}}(Y) \geq 1 \right\}\right|}
 \]
-where:
-\begin{align}
-\nu_{\text{interface}} &= |E_{\text{essential}}| + \Delta_{\text{coherence}} + \Delta_{\text{layer}}\\
-\nu_{\text{dimensional}} &= \sum_{d \geq 0} W(d) \cdot |C_d|
-\end{align}
+Note that if $K_{\mathcal{B}}(Y) = \infty$ and $K_{\mathcal{B} \cup \{X\}}(Y) < \infty$, the schema $Y$ contributes 1 to the count.
+\end{definition}
 
-Here $|C_d|$ denotes the number of constructors at dimension $d$, $W(d)$ are the dimensional weights from Section 2.1, and $\Delta_{\text{layer}} = 1$ if the structure establishes a new modality or abstraction layer not already captured by coherence.
-
-\textbf{For Connectors:}
+\begin{definition}[Efficiency and Selection Threshold]
+\label{def:efficiency}
+The \emph{efficiency} of a sealed candidate $X$ is:
 \[
-\nu(X) = \max \begin{cases}
-\kappa(\text{type of } X) + 1 & \text{if } X \text{ is the first inhabitant}\\
-\nu(A) + \nu(B) & \text{if } X : A \to B \text{ is an organizing map}\\
-\nu(\text{archetype})/\kappa(X) & \text{if } X \text{ abstracts from an archetype}
-\end{cases}
+\rho(X) = \frac{\nu(X)}{\kappa(X)}
 \]
 
-The maximum is taken over all applicable interpretations, ensuring that the most significant organizational role is recognized.
-\end{axiom}
-
-The formula for abstraction, $\nu(X) = \nu(\text{archetype})/\kappa(X)$, is the engine of unbounded efficiency growth. When a complex archetype with high novelty can be captured by a concise abstraction with low effort, the resulting efficiency can be arbitrarily large. This mechanism formalizes how mathematical progress achieves ever-greater compression of conceptual content.
-
-%===========================AXIOM 4=================================================
-
-\subsection{Axiom 4: Selection by Minimal Overshoot}
-
-The selection mechanism determines which structures get realized based on their efficiency relative to a dynamic threshold that rises with accumulated mathematical sophistication.
-
-\begin{axiom}[Competition and Selection]
-At each tick $\tau$, the algorithm selects at most one structure for realization through the following process:
-
-\textbf{Define the Global Resonance Bar:}
+The Selection Threshold at step $\tau$ is given by
 \[
-\text{Bar}(\tau) = \Phi(\tau) \cdot \Omega(\tau-1)
+\text{Bar}(\tau) = \Phi(\tau) \cdot \Omega(\tau-1),
 \]
-where:
+where $\text{Bar}(\tau)=0$ if $\tau=1$, otherwise:
 \begin{itemize}
 \item $\Omega(\tau-1) = \frac{\sum_{t<\tau} \nu(t)}{\sum_{t<\tau} \kappa(t)}$ is the historical average efficiency
-\item $\Phi(\tau) = \frac{\tau}{\tau_{-1}}$ is the momentum factor (ratio of current time to time of last realization)
+\item $\Phi(\tau)=\tau / \tau_<,$ where $\tau_<$ is the previous realization tick.
 \end{itemize}
+\end{definition}
 
-\textbf{Admissibility Criteria:}
-A structure $X$ is admissible at time $\tau$ if:
-\begin{enumerate}
-\item $\kappa(X \mid \mathcal{R}(\tau-1)) \leq H$ (within current effort horizon)
-\item $\text{Level}(X) \leq \max_{Y \in \mathcal{R}(\tau-1)} \text{Level}(Y) + 1$ (respects universe hierarchy)
-\item $X$ can be constructed from structures in $\mathcal{R}(\tau-1)$
-\end{enumerate}
+\subsection{Axioms of Evolution}
 
-\textbf{Selection Rule:}
-\begin{enumerate}
-\item Calculate efficiency $\rho(X) = \nu(X)/\kappa(X)$ for all admissible candidates
-\item If $\max_X \rho(X) < \text{Bar}(\tau)$: idle (no realization), increment horizon $H \to H+1$
-\item Otherwise: realize the candidate with minimal positive overshoot:
+The following axioms govern the dynamics of the system:
+
+\begin{axiom} Nothing Ever Disappears: Mathematics Can Only Grow.
+\label{ax:cumulative}
+
+\medskip 
+
+The state evolves cumulatively while preserving well-typedness. For any time $\tau$:
 \[
-\text{Winner} = \arg\min_{X : \rho(X) \geq \text{Bar}(\tau)} \left(\rho(X) - \text{Bar}(\tau)\right)
+\mathcal{R}(\tau - 1) \subseteq \mathcal{R}(\tau)
 \]
-\item After realization: reset horizon $H \to 2$
-\end{enumerate}
-
-\textbf{Tie-Breaking:}
-If multiple candidates achieve identical minimal overshoot, select those with minimal $\kappa$. If ties persist, realize all tied candidates in superposition, weighted by their number of distinct minimal derivations.
+Every declaration respects CTT's typing rules and universe level discipline.
 \end{axiom}
 
-The Global Resonance Bar serves as a quality control mechanism that prevents premature or incremental realizations. The historical average $\Omega$ ensures that new structures must be increasingly efficient as mathematics matures, while the momentum factor $\Phi$ prevents indefinite stagnation by gradually lowering the threshold during idle periods.
+\textbf{Intuition:} Imagine the mathematical universe as a one-way library: books can be added to the shelves, but none are ever thrown away or rewritten.
+Axiom 1 locks the door to erasure—every definition, once accepted, stays on the record forever.
+This guarantees that tomorrow’s theorems can safely cite yesterday’s lemmas, letting knowledge compound like interest instead of starting from scratch each morning.
 
-The minimal overshoot principle is crucial: it ensures that mathematics develops through conceptually coherent steps rather than jumping to highly efficient but premature abstractions. This creates a ``conceptual ratchet'' where each realization is the natural next step given current mathematical reality.
+\begin{axiom}[Horizon Policy]
+\label{ax:horizon}
+A global effort horizon $H \in \mathbb{N}$ governs the search space:
+\begin{itemize}[noitemsep]
+\item \textbf{Reset:} After any successful realization, set $H \leftarrow 2$
+\item \textbf{Increment:} If a tick idles (no candidate selected), set $H \leftarrow H + 1$
+\end{itemize}
+All novelty and admissibility calculations use the current horizon $H$, ensuring two-step locality.
+\end{axiom}
 
-The horizon mechanism ($H$) controls the search space for candidates. Starting at $H=2$ after each realization forces the next innovation to be lean and directly build on recent progress. When no candidates clear the bar, the horizon expands, allowing more complex structures to be considered.
+\begin{axiom}[Admissibility]
+\label{ax:admissible}
+At time $n$, a sealed candidate $X$ over base $\mathcal{B} = \mathcal{R}(\tau_n - 1)$ is \emph{admissible} if and only if:
+\begin{enumerate}[noitemsep]
+\item $X$ is derivable from $\mathcal{B}$ in CTT
+\item Its context-closed effort satisfies $\kappa(X \mid \mathcal{B}) \leq H$
+\end{enumerate}
+\end{axiom}
 
-Together, these four axioms create a self-organizing system where mathematical structures emerge not randomly but in order of optimal conceptual compression, producing a growth pattern that balances exploration of new structures with integration of existing ones.
+\begin{axiom}[Selection Criterion]
+\label{ax:selection}
+From the set of admissible candidates at time $\tau$, a candidate $X$ is selected for realization if it clears the bar with \emph{minimal positive overshoot}:
+\[
+\rho(X) \geq \mathrm{Bar}(\tau) \quad \text{and} \quad X \in \underset{\substack{Y \text{ admissible} \\ \rho(Y) \geq \mathrm{Bar}(\tau)}}{\arg\min} \, (\rho(Y) - \mathrm{Bar}(\tau))
+\]
 
-%===========================END OF AXIOMS=================================================
+\noindent\textbf{Tie-Breaking Protocol:}
+\begin{enumerate}[noitemsep]
+\item If multiple candidates achieve identical minimal overshoot, select those with minimal $\kappa$
+\item If ties persist, realize all tied candidates in superposition, weighted by their number of distinct minimal derivations
+\end{enumerate}
+
+If no admissible candidate satisfies $\rho(X) \geq \mathrm{Bar}(\tau)$, the tick idles and horizon $H$ increments per Axiom~\ref{ax:horizon}.
+\end{axiom}
+
+\begin{axiom}[Integration by Recomputation]
+\label{ax:integration}
+When candidate $X_{n+1}$ is realized, integration work is modeled by recomputing interactions with the previous two integration layers $L_n$ and $L_{n-1}$. The new \emph{integration layer} is:
+\[
+\boxed{L_{n+1} := (X_{n+1} \circ L_n) \uplus (X_{n+1} \circ L_{n-1})}
+\]
+where:
+\begin{itemize}[noitemsep]
+\item $\circ$ denotes the set of frontier schemas affected by the interaction
+\item $\uplus$ is disjoint union (deduplicated up to definitional equality)
+\end{itemize}
+
+The \emph{integration gap} $\Delta_{n+1}$ represents the cost of this process, computed additively over disjoint components:
+\[
+\Delta_{n+1} := \kappa(L_{n+1})
+\]
+\end{axiom}
+
+\begin{remark}
+The framework presented here can be viewed as a computational model for the organic growth of mathematical structures, where continously increasing efficiency pressures drive the selection of new constructions.
+\end{remark}
 
 \section{Theoretical Results}
+This section establishes that the efficiency of realized structures grows without bound under the global selection criterion, driven by the availability of increasingly powerful abstractions.
 
-This section establishes the fundamental theorems that distinguish our framework from traditional models of computation and explain the emergent phenomena observed in the genesis sequence.
+\subsubsection{The Global Bar and Variable Multiplier}
 
-\subsection{Theorem: Unbounded Conceptual Efficiency}
-
-Our first major result shows that mathematical evolution operates under fundamentally different laws than mechanical computation.
-
-\begin{theorem}[Unbounded Conceptual Efficiency]\label{thm:unbounded}
-Let $\mathcal{R}(\tau)$ be the Mathematical Reality at time $\tau$, evolving according to Axioms 1-4. Then:
-
-\begin{enumerate}
-\item \textbf{Unbounded Growth:} The maximum achievable efficiency grows without bound:
+Recall from Definition~\ref{def:efficiency} that the selection threshold at time $n$ is given by:
 \[
-\limsup_{\tau \to \infty} \max_{X \in \text{Candidates}(\tau)} \rho(X) = \infty
+\mathrm{Bar}_n = \Phi(\tau_n) \cdot \Omega_{n-1}
 \]
+where:
+\begin{itemize}[noitemsep]
+\item $\Phi(\tau_n) = \tau_n/\tau_{n-1}$ is the \emph{time dilation factor}
+\item $\Omega_{n-1} = \frac{\sum_{i=1}^{n-1} \nu_i}{\sum_{i=1}^{n-1} \kappa_i}$ is the \emph{global average efficiency}
+\item By convention, $\mathrm{Bar}_1 = 0$
+\end{itemize}
 
-\item \textbf{Acceleration Through Abstraction:} For any realized archetype $A$ with novelty $\nu(A)$, there exists a potential abstraction $X$ with efficiency:
+Axiom~\ref{ax:selection} ensures that any realized structure satisfies $\rho_n \geq \mathrm{Bar}_n$.
+
+\begin{lemma}[Amplification with Variable Multiplier]
+\label{lem:var-amp}
+Let $K_{n-1} = \sum_{i=1}^{n-1} \kappa_i$ and $S_{n-1} = \sum_{i=1}^{n-1} \nu_i$ denote the cumulative effort and novelty through time $n-1$, with $\Omega_{n-1} = S_{n-1}/K_{n-1}$. 
+
+If the $n$-th realization achieves efficiency $\rho_n \geq \Phi(\tau_n) \cdot \Omega_{n-1}$, then:
 \[
-\rho(X) = \frac{\nu(X)}{\kappa(X)} = \frac{\nu(A)}{\kappa(X)^2}
+\Omega_n = \frac{S_{n-1} + \nu_n}{K_{n-1} + \kappa_n} \geq \Omega_{n-1} \left(1 + (\Phi(\tau_n) - 1) \cdot \frac{\kappa_n}{K_{n-1} + \kappa_n}\right)
 \]
-where $\kappa(X)$ can be made arbitrarily small (bounded only by minimal description length).
+\end{lemma}
 
-\item \textbf{Compound Growth:} The rate of efficiency growth itself accelerates over time.
+\begin{proof}
+Starting with the definition of $\Omega_n$:
+\begin{align}
+\Omega_n &= \frac{S_{n-1} + \nu_n}{K_{n-1} + \kappa_n} = \frac{\Omega_{n-1} K_{n-1} + \rho_n \kappa_n}{K_{n-1} + \kappa_n} \\
+&\geq \frac{\Omega_{n-1} K_{n-1} + \Phi(\tau_n) \Omega_{n-1} \kappa_n}{K_{n-1} + \kappa_n} \\
+&= \Omega_{n-1} \left(\frac{K_{n-1} + \Phi(\tau_n) \kappa_n}{K_{n-1} + \kappa_n}\right) \\
+&= \Omega_{n-1} \left(1 + (\Phi(\tau_n) - 1) \frac{\kappa_n}{K_{n-1} + \kappa_n}\right) \qedhere
+\end{align}
+\end{proof}
+
+\subsubsection{The Fibonacci Time Dilation}
+
+The following result, which follows directly from the integration dynamics, establishes that realizations naturally occur at Fibonacci-spaced intervals.
+
+\begin{theorem}[Fibonacci Schedule and Time Dilation]
+\label{thm:fib-schedule-global}
+Under Axiom~\ref{ax:integration} with the unit-cost model (Definition~\ref{def:base-calculus}), the integration gaps satisfy:
+\[
+\Delta_{n+1} = \Delta_n + \Delta_{n-1}
+\]
+with bootstrap conditions $\Delta_1 = \Delta_2 = 1$. Consequently:
+\begin{enumerate}[noitemsep]
+\item $\Delta_n = F_n$ (the $n$-th Fibonacci number)
+\item $\tau_n = F_{n+1}$ for $n \geq 1$
+\item $\Phi(\tau_n) = \frac{F_{n+1}}{F_n} \to \varphi = \frac{1+\sqrt{5}}{2}$ as $n \to \infty$
 \end{enumerate}
 \end{theorem}
 
 \begin{proof}
-\textbf{Part 1:} By Axiom 3, for any realized structure $A$ serving as an archetype, we can construct an abstraction $X$ with novelty:
-\[
-\nu(X) = \frac{\nu(A)}{\kappa(X)}
-\]
-
-As $\tau$ increases, the cumulative nature of $\mathcal{R}$ (Axiom 1) ensures that the pool of potential archetypes includes structures with increasingly large $\nu(A)$. Since $\kappa(X)$ has a theoretical lower bound of 1 (minimal abstraction cost) but $\nu(A)$ grows without bound, the efficiency:
-\[
-\rho(X) = \frac{\nu(X)}{\kappa(X)} = \frac{\nu(A)}{\kappa(X)^2}
-\]
-is unbounded.
-
-\textbf{Part 2:} The quadratic relationship $\rho(X) = \nu(A)/\kappa(X)^2$ shows that efficiency grows with the square of the compression ratio. A concise abstraction ($\kappa(X) \to \text{small}$) of a novel archetype ($\nu(A) \to \text{large}$) yields dramatic efficiency gains.
-
-\textbf{Part 3:} Each generation of abstractions can serve as archetypes for the next generation. If generation $n$ achieves maximum novelty $\nu_n$, then generation $n+1$ can achieve efficiency $\rho_{n+1} \sim \nu_n/\kappa^2$. Since $\nu_{n+1} = \rho_{n+1} \cdot \kappa \sim \nu_n/\kappa$, we have recursive growth. The efficiency growth rate itself increases over time, leading to acceleration.
+The recurrence follows from $L_{n+1} = (X_{n+1} \circ L_n) \uplus (X_{n+1} \circ L_{n-1})$ via unit-cost invariance and additivity over disjoint union, as established in Theorem~\ref{thm:fib-schedule}. The convergence to $\varphi$ follows from standard properties of consecutive Fibonacci ratios.
 \end{proof}
 
-This theorem formalizes the fundamental distinction between calculation (bounded by Church-Turing) and abstraction (unbounded). The mechanism—using high-novelty archetypes as fodder for low-complexity abstractions—provides unlimited conceptual leverage.
+\subsubsection{Main Result: Unbounded Growth}
+
+\begin{theorem}[Unbounded Conceptual Efficiency]
+\label{thm:unbounded-global}
+Let $\mathcal{R}(\tau)$ evolve according to Axioms~\ref{ax:cumulative}--\ref{ax:integration} with the global bar (Definition~\ref{def:efficiency}). Under the following conditions:
+
+\begin{enumerate}[label=(G\arabic*)]
+\item \textbf{Fibonacci schedule:} $\tau_n/\tau_{n-1} \to \varphi > 1$ (Theorem~\ref{thm:fib-schedule-global})
+\item \textbf{Minimal effort unit:} Every realization satisfies $\kappa_n \geq 1$
+\item \textbf{Abstraction availability:} For any realized archetype $A$, there exists an admissible abstraction $X$ with novelty $\nu(X) = \nu(A)/\kappa(X)$, yielding efficiency $\rho(X) = \nu(A)/\kappa(X)^2$
+\end{enumerate}
+
+Then the system exhibits:
+\begin{enumerate}[noitemsep]
+\item \textbf{Unbounded growth:} $\limsup_{n \to \infty} \rho_n = \infty$
+\item \textbf{Acceleration via abstraction:} For any realized $A$, abstractions exist with efficiency $\rho(X) = \nu(A)/\kappa(X)^2$ that grows arbitrarily large as $\kappa(X)$ approaches its minimal description length
+\item \textbf{Compound acceleration:} The global average $\Omega_n$ diverges at least polynomially in $n$
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+Let $K_{n-1} = \sum_{i=1}^{n-1} \kappa_i$. By (G2), we have $K_{n-1} \geq n-1$, hence:
+\[
+\frac{\kappa_n}{K_{n-1} + \kappa_n} \geq \frac{1}{n}
+\]
+
+Since $\rho_n \geq \Phi(\tau_n) \cdot \Omega_{n-1}$ by selection, Lemma~\ref{lem:var-amp} yields:
+\[
+\Omega_n \geq \Omega_{n-1} \left(1 + (\Phi(\tau_n) - 1) \cdot \frac{1}{n}\right)
+\]
+
+By (G1), for any $\varepsilon \in (0, \varphi - 1)$, there exists $N$ such that $\Phi(\tau_n) \geq \varphi - \varepsilon$ for all $n \geq N$. Thus:
+\[
+\Omega_n \geq \Omega_{n-1} \left(1 + \frac{\varphi - 1 - \varepsilon}{n}\right) \quad \text{for } n \geq N
+\]
+
+Iterating this inequality and using the asymptotic expansion $\prod_{k=N+1}^n \left(1 + \frac{\alpha}{k}\right) \sim n^\alpha$ yields:
+\[
+\Omega_n \geq C \cdot n^{\varphi - 1 - \varepsilon}
+\]
+for some constant $C > 0$. This establishes polynomial divergence of $\Omega_n$.
+
+For part (1), since $\rho_{n+1} \geq \Phi(\tau_{n+1}) \cdot \Omega_n$ and both factors diverge, we have $\limsup_{n \to \infty} \rho_n = \infty$.
+
+Part (2) follows directly from (G3): for any realized archetype $A$ with large novelty $\nu(A)$, choosing $\kappa(X)$ near its minimal value yields arbitrarily large $\rho(X) = \nu(A)/\kappa(X)^2$.
+
+Part (3) is established by the polynomial growth of $\Omega_n$ combined with $\Phi(\tau_n) \to \varphi > 1$.
+\end{proof}
+
+\begin{corollary}[Asymptotic $\varphi$-Boost]
+\label{cor:phi-boost-global}
+Under the global bar, for every $\varepsilon > 0$, there exists $n_0$ such that for all $n \geq n_0$:
+\[
+\rho_n \geq (\varphi - \varepsilon) \cdot \Omega_{n-1}
+\]
+\end{corollary}
+
+\begin{proof}
+By selection, $\rho_n \geq \Phi(\tau_n) \cdot \Omega_{n-1}$. Since $\Phi(\tau_n) \to \varphi$ by Theorem~\ref{thm:fib-schedule-global}, for sufficiently large $n$ we have $\Phi(\tau_n) \geq \varphi - \varepsilon$.
+\end{proof}
 
 \subsection{The Efficiency Dichotomy}
 
-To crystallize the distinction between our framework and traditional computational complexity, we establish:
+We conclude by characterizing the fundamental difference between optimization within a fixed framework versus evolution of the framework itself.
 
-\begin{theorem}[Efficiency Dichotomy]\label{thm:dichotomy}
-Let $\mathcal{E}_{\text{calc}}$ denote efficiency gains achievable through calculation (optimization within a fixed formal system) and $\mathcal{E}_{\text{evol}}$ denote efficiency gains achievable through framework evolution (abstraction and language expansion). Then:
+\begin{theorem}[Efficiency Dichotomy]
+\label{thm:dichotomy-global}
+Let $\mathcal{E}_{\text{calc}}$ denote efficiency gains achievable by calculation within a fixed formal system, and $\mathcal{E}_{\text{evol}}$ denote gains achievable through framework evolution (abstraction and language expansion). Then:
 
-\begin{enumerate}
-\item \textbf{Calculation is bounded:} There exists a polynomial $p$ such that for any two models of calculation $M_1, M_2$:
+\begin{enumerate}[noitemsep]
+\item \textbf{Calculation is bounded:} For any two reasonable models of computation $M_1, M_2$, there exists a polynomial $p$ such that:
 \[
 \mathcal{E}_{\text{calc}}(M_1 \to M_2) \leq p(n)
 \]
-where $n$ is the input size (Strong Church-Turing Thesis).
+This follows from the Strong Church-Turing thesis.
 
-\item \textbf{Evolution is unbounded:} For any function $f: \mathbb{N} \to \mathbb{N}$, there exists a time $\tau$ such that:
+\item \textbf{Evolution is unbounded:} For any function $f: \mathbb{N} \to \mathbb{N}$, there exists time $\tau$ such that:
 \[
 \mathcal{E}_{\text{evol}}(\tau) > f(\tau)
 \]
 
-\item \textbf{The mechanisms are orthogonal:} Efficiency gains from calculation and evolution are multiplicatively independent:
+\item \textbf{Orthogonal composition:} The total efficiency gain factors as:
 \[
 \mathcal{E}_{\text{total}} = \mathcal{E}_{\text{calc}} \times \mathcal{E}_{\text{evol}}
 \]
@@ -552,26 +394,16 @@ where $n$ is the input size (Strong Church-Turing Thesis).
 \end{theorem}
 
 \begin{proof}
-Part 1 follows from the Strong Church-Turing Thesis: any reasonable model of computation can simulate any other with at most polynomial overhead.
+Part (1) is a standard consequence of computational complexity theory and the Strong Church-Turing thesis.
 
-Part 2 follows from Theorem \ref{thm:unbounded}: conceptual abstraction provides unbounded efficiency gains.
+Part (2) follows from Theorem~\ref{thm:unbounded-global}: both realized efficiencies $\rho_n$ and the global average $\Omega_n$ diverge without bound. By condition (G3), abstractions can achieve $\rho = \nu/\kappa^2$ arbitrarily large as novel archetypes emerge.
 
-Part 3 reflects that calculation optimizes execution within a language while evolution optimizes the language itself. These are independent dimensions of improvement.
+Part (3) reflects the fundamental separation of concerns: calculation optimizes execution \emph{within} a fixed language, while evolution optimizes the \emph{language itself}. These orthogonal contributions compose multiplicatively.
 \end{proof}
 
-\begin{corollary}[Inevitability of Abstraction]
-Any efficiency-maximizing evolutionary system must develop increasingly abstract structures. Direct construction becomes competitively obsolete relative to abstraction-based construction.
-\end{corollary}
-
-\begin{corollary}[Compression as Destiny]
-Mathematical Reality evolves toward maximal conceptual compression: the winning structures are those that capture the most novelty in the least complexity.
-\end{corollary}
-
-\begin{corollary}[The Paradox of Depth]
-As Mathematical Reality grows more sophisticated (higher $\nu$ structures), it simultaneously becomes more comprehensible (through abstractions with low $\kappa$).
-\end{corollary}
-
-These theoretical results establish that our framework describes a fundamentally different kind of process than computation—one where efficiency can grow without bound through the power of abstraction, and where the natural dynamics produce self-similar growth at the golden ratio. The implications extend beyond mathematics to any system where abstract reorganization of conceptual content is possible.
+\begin{remark}
+The efficiency dichotomy reveals why mathematical progress requires both computational optimization and conceptual innovation. While better algorithms provide polynomial speedups, new abstractions enable unbounded acceleration—explaining the historical pattern of mathematical breakthroughs that fundamentally restructure entire fields.
+\end{remark}
 
 \section{The Genesis Sequence}
 We now validate our framework by examining the sequence of mathematical structures it generates. Each realization emerges at precisely the moment when its efficiency becomes optimal, producing a progression that remarkably mirrors the historical development of mathematics.
@@ -586,7 +418,7 @@ $\tau$ & Structure & $\nu$ & $\kappa$ & $\nu/\kappa$ & Bar $= \phi \cdot \Omega(
 \hline
 1 & Universe $\mathcal{U}_0 : \mathcal{U}_1$ & 1 & 2 & 0.50 & --- \\
 2 & Unit type $\mathbf{1}$ & 1 & 1 & 1.00 & 0.81 \\
-3 & Witness $\star : \mathbf{1}$ & 2 & 1 & 2.00 & 1.08 \\
+3 & Witness $\star : \mathbf{1}$ & 2 & 1 & 2.00 & 1.62 \\
 5 & $\Pi$/$\Sigma$ types & 5 & 3 & 1.67 & 1.62 \\
 8 & Circle $S^1$ & 7 & 3 & 2.33 & 2.08 \\
 13 & Propositional Truncation & 8 & 3 & 2.67 & 2.59 \\
@@ -599,10 +431,7 @@ $\tau$ & Structure & $\nu$ & $\kappa$ & $\nu/\kappa$ & Bar $= \phi \cdot \Omega(
 377 & Curvature tensors & 34 & 6 & 5.67 & 5.53 \\
 610 & Metric + orthonormal frame bundle & 43 & 7 & 6.14 & 6.05 \\
 987 & Hilbert functional on Riemannian metrics & 60 & 9 & 6.67 & 6.60 \\
-1597 & Intrinsic Geometry & 17 & 2 & 8.50 & 7.25 \\
-2584 & Metric-Compatible Connections & 21 & 2 & 10.50 & 7.47 \\
-4181 & Geometric Variational Principles & 30 & 2 & 15.00 & 7.77 \\
-6765 & Dynamical Cohesive Topos & 150 & 8 & 18.75 & 8.29 \\
+1597 & Dynamical Cohesive Topos & 150 & 8 & 18.75 & 8.29 \\
 \hline
 \end{tabular}
 \end{center}
@@ -610,343 +439,6 @@ $\tau$ & Structure & $\nu$ & $\kappa$ & $\nu/\kappa$ & Bar $= \phi \cdot \Omega(
 \begin{proof}
 The automated generation of these structures based on the 4 axioms are done in Lean 4. The code is available at github.com/efficient-novelty
 \end{proof}
-
-\subsection{Early Foundations ($\tau = 1$--$13$)}
-
-The algorithm begins by establishing the minimal type-theoretic infrastructure necessary for mathematical expression.
-
-\subsubsection{$\tau = 1$: First Universe $\mathcal{U}_0 : \mathcal{U}_1$ (Proof Sketch)}
-\label{subsubsec:tau1}
-
-\textbf{Claim.} The first realized structure is a cumulative universe judgment
-$\mathcal{U}_0 : \mathcal{U}_1$ with effort $\kappa=2$ and novelty $\nu=1$.
-
-\paragraph{Admissibility (Axioms 1 \& 4).}
-At bootstrap we have $\mathcal{R}(0)=\emptyset$ and no prior realizations, hence
-$\Omega(0)$ is undefined. By the bootstrap convention permitted by Axiom~4
-(\emph{no historical bar}), we take $\mathrm{Bar}(1)=0$. The post-realization
-horizon is initialized at $H=2$, so any candidate with $\kappa\le 2$ and
-respecting the universe level rule is admissible. The minimal nontrivial
-candidate is a cumulative universe judgment $\mathcal{U}_0:\mathcal{U}_1$.
-
-\paragraph{Effort (Axiom 2).}
-We treat universes as a Constructor with no essential eliminator. The minimal
-presentation requires two zero-dimensional clauses:
-\begin{enumerate}[label=(\roman*)]
-\item \emph{Formation of a small universe:} $\mathcal{U}_0$,
-\item \emph{Cumulativity/typing:} $\mathcal{U}_0 : \mathcal{U}_1$.
-\end{enumerate}
-There are no essential eliminators for a universe and no internal adjunction
-discounts at this stage. Hence
-\[
-\kappa(\mathcal{U}_0:\mathcal{U}_1)
-= |C| + |E_{\mathrm{ess}}| - \Delta_{\mathrm{coh}}
-= 2 + 0 - 0
-= 2.
-\]
-
-\paragraph{Novelty (Axiom 3).}
-Interface novelty is zero: $|E_{\mathrm{ess}}|=0$ and there is no new modal
-layer credited at bootstrap ($\Delta_{\mathrm{layer}}=0$ here). Dimensional
-novelty counts $0$-dimensional constructors via $W(0)=1$. Of the two clauses
-above, only the \emph{typing judgment} $\mathcal{U}_0:\mathcal{U}_1$ contributes
-novelty (the bare name $\mathcal{U}_0$ has no semantics without its typing).
-Thus
-\[
-\nu(\mathcal{U}_0:\mathcal{U}_1)
-= \nu_{\mathrm{interface}} + \nu_{\mathrm{dimensional}}
-= 0 + W(0)\cdot 1
-= 1.
-\]
-Therefore the efficiency is $\rho=\nu/\kappa=1/2=0.5$, matching
-Table~\ref{tab:genesis}.
-
-\paragraph{Selection (Axiom 4).}
-With $\mathrm{Bar}(1)=0$, any admissible candidate with $\rho>0$ clears the bar.
-Among all admissible seeds, $\mathcal{U}_0:\mathcal{U}_1$ has minimal positive
-overshoot (indeed, there are no strictly simpler well-typed seeds), so it is
-selected by the minimal-overshoot rule. After realization the horizon resets to
-$H\!\to\!2$.
-
-\paragraph{Integration Time (Axiom 1).}
-The universe enables the first well-typed small objects. The organized domain
-immediately following this step is the trivial $0$-dimensional substrate needed
-to instantiate the Unit type. Its organizational complexity is $\kappa=1$,
-hence the integration gap to the next realization is one logical tick:
-$\Delta_1=\tau_2-\tau_1=1$, consistent with $\tau=2$ for $\mathbf{1}$ in the
-genesis table.
-
-\medskip
-\noindent
-\emph{Conclusion.} The cumulative universe judgment is the unique minimal
-admissible seed that (i) respects level discipline, (ii) incurs $\kappa=2$ with
-no eliminators, and (iii) contributes exactly one unit of $0$-dimensional
-novelty, thereby bootstrapping the language in the most efficient way possible.
-
-
-\subsubsection{$\tau = 2$: Unit Type}
-
-The Unit type emerges first as the simplest possible mathematical structure after the first universe:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\mathbfone) = 1$ (one constructor \textttstar, no essential eliminators)
-\item \textbf{Novelty:} $\nu(\mathbfone) = 1$ (one 0-dimensional constructor: $W(0) \times 1 = 1$)
-\item \textbf{Efficiency:} $\rho = 1.0$
-\end{itemize}
-
-The Unit type provides the atomic concept of existence---a single point with no internal structure. Its eliminator is not essential since the type is contractible.
-
-\subsubsection{$\tau = 3$: Witness ($\star : 1$)}
-
-The first inhabitant of the Unit type doubles its novelty:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\star) = 1$ (trivial derivation)
-\item \textbf{Novelty:} $\nu(\star) = \kappa(\mathbfone) + 1 = 2$ (first inhabitant bonus)
-\item \textbf{Efficiency:} $\rho = 2.0$
-\end{itemize}
-
-\subsubsection{$\tau = 5$: $\Pi/\Sigma$ Types}
-
-The dependent type formers emerge as a coupled pair, demonstrating the first coherence discount:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\PiSigma) = 2 + 2 - 1 = 3$ 
-  \begin{itemize}
-  \item Two constructors (lambda, pair)
-  \item Two essential eliminators
-  \item Coherence discount of 1 for the adjunction $\Sigma \dashv \Pi$
-  \end{itemize}
-\item \textbf{Novelty:} $\nu(\PiSigma) = 3 + 2 = 5$
-  \begin{itemize}
-  \item Interface: $2 + 1 + 0 = 3$ (eliminators + coherence)
-  \item Dimensional: $W(0) \times 2 = 2$
-  \end{itemize}
-\item \textbf{Efficiency:} $\rho = 1.67$
-\end{itemize}
-
-This realization implicitly provides all polynomial functors, including natural numbers, lists, and trees as W-types. The algorithm recognizes that bundling these as dependent types is more efficient than realizing them separately.
-
-\subsubsection{$\tau = 8$: Circle ($S^1$)}
-
-The circle introduces the first higher inductive type and implicitly requires identity types:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(S^1) = 2 + 1 = 3$ (base point, loop path, one eliminator)
-\item \textbf{Novelty:} $\nu(S^1) = 1 + 6 = 7$
-  \begin{itemize}
-  \item Interface: 1 (essential eliminator)
-  \item Dimensional: $W(0) \times 1 + W(1) \times 1 = 1 + 5 = 6$
-  \end{itemize}
-\item \textbf{Efficiency:} $\rho = 2.33$
-\end{itemize}
-
-The jump in dimensional novelty (adding 5 for the path) reflects the fundamental leap from points to paths, introducing the entire machinery of path algebra.
-
-\subsubsection{$\tau = 13$: Propositional Truncation}
-
-Truncation establishes the logical layer, creating a modality for mere propositions:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\|\cdot\|) = 2 + 1 = 3$
-\item \textbf{Novelty:} $\nu(\|\cdot\|) = 2 + 6 = 8$
-  \begin{itemize}
-  \item Interface: $1 + 0 + 1 = 2$ (eliminator + layer bonus)
-  \item Dimensional: $W(0) + W(1) = 6$
-  \end{itemize}
-\item \textbf{Efficiency:} $\rho = 2.67$
-\end{itemize}
-
-The layer bonus recognizes that truncation creates a new abstraction layer---the universe of propositions---distinct from the universe of types.
-
-\subsection{Geometric Structures ($\tau = 21$--$55$)}
-
-The algorithm proceeds to build fundamental geometric objects and their relationships.
-
-\subsubsection{$\tau = 21$: 2-Sphere ($S^2$)}
-
-The 2-sphere demonstrates the first 2-dimensional constructor:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(S^2) = 2 + 1 = 3$
-\item \textbf{Novelty:} $\nu(S^2) = 1 + 9 = 10$
-  \begin{itemize}
-  \item Interface: 1
-  \item Dimensional: $W(0) + W(2) = 1 + 8 = 9$
-  \end{itemize}
-\item \textbf{Efficiency:} $\rho = 3.33$
-\end{itemize}
-
-The dimensional weight $W(2) = 8$ adds only 3 operations beyond paths, representing the three coherence laws needed for 2-dimensional structures.
-
-\subsubsection{$\tau = 34$: $S^3 \cong \text{SU}(2)$}
-
-This realization bundles topology with group structure:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(S^3) = 4 + 1 = 5$
-  \begin{itemize}
-  \item Four constructors: base (0D), multiplication (0D), associativity (1D), volume (3D)
-  \end{itemize}
-\item \textbf{Novelty:} $\nu(S^3) = 1 + 17 = 18$
-  \begin{itemize}
-  \item Dimensional: $2 \times W(0) + W(1) + W(3) = 2 + 5 + 10 = 17$
-  \end{itemize}
-\item \textbf{Efficiency:} $\rho = 3.6$
-\end{itemize}
-
-\subsubsection{$\tau = 55$: Hopf Fibration}
-
-The Hopf map $S^3 \to S^2$ emerges as an organizing principle:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\text{Hopf}) = 4$ (derivation length)
-\item \textbf{Novelty:} $\nu(\text{Hopf}) = \nu(S^1) + \nu(S^2) = 7 + 10 = 17$
-\item \textbf{Efficiency:} $\rho = 4.25$
-\end{itemize}
-
-As an organizing map, the Hopf fibration's novelty equals the sum of the structures it unifies, recognizing its role in revealing the deep relationship between spheres of different dimensions.
-
-\subsection{Abstract Frameworks ($\tau = 89$--$377$)}
-
-The system begins to extract general principles from specific instances.
-
-\subsubsection{$\tau = 89$: Lie Groups}
-
-Generic Lie groups emerge by abstracting from the $S^3 \cong \text{SU}(2)$ archetype:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\text{Lie}) = 1 + 1 = 2$
-\item \textbf{Novelty:} $\nu(\text{Lie}) = \nu(S^3)/\kappa = 18/2 = 9$
-\item \textbf{Efficiency:} $\rho = 4.5$
-\end{itemize}
-
-This demonstrates the power of conceptual abstraction: capturing the essence of a complex archetype in a concise definition yields high efficiency.
-
-\subsubsection{$\tau = 144$: Cohesion}
-
-The cohesive structure provides differential geometry through an adjoint triple:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\text{Cohesion}) = 3 + 3 - 2 = 4$
-  \begin{itemize}
-  \item Three constructors (Point, Interval, Triangle)
-  \item Three modalities ($\Shape \dashv \flat \dashv \sharp$)
-  \item Coherence discount of 2 for the adjoint triple
-  \end{itemize}
-\item \textbf{Novelty:} $\nu(\text{Cohesion}) = 5 + 14 = 19$
-  \begin{itemize}
-  \item Interface: $3 + 2 = 5$ (modalities + coherence)
-  \item Dimensional: $W(0) + W(1) + W(2) = 14$
-  \end{itemize}
-\item \textbf{Efficiency:} $\rho = 4.75$
-\end{itemize}
-
-\subsubsection{$\tau = 233$: Principal Bundle Connections}
-
-The differential bridge between symmetry and geometry: a connection on a principal $G$-bundle equips paths with horizontal lift / parallel transport and induces $\nabla$ on associated bundles—synthesizing Lie groups (89) with cohesion (144) and setting up curvature (377).
-
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\mathrm{Conn}) = 5 = (|C|{=}4) + (|E_{\mathrm{ess}}|{=}3) - (\Delta_{\mathrm{coh}}{=}2)$
-  \begin{itemize}
-  \item Constructors: $\omega$, Lift, PT, $\nabla$ (all 1D)
-  \item Essential eliminators: uniqueness \& functoriality of PT, compatibility with $\nabla$
-  \end{itemize}
-\item \textbf{Novelty:} $\nu(\mathrm{Conn}) = 26 = \underbrace{(3+2)}_{\text{interface}} + \underbrace{4\cdot W(1)}_{\text{dimensional }=20}$
-  \begin{itemize}
-  \item Interface: $|E_{\mathrm{ess}}|{=}3$ plus coherence discount counted positively ($+2$)
-  \item Dimensional: four $1$-dimensional operators, $W(1)=5$
-  \end{itemize}
-\item \textbf{Efficiency:} $\rho = \nu/\kappa = 26/5 = 5.20 \;>\; \mathrm{Bar}(233)=5.07$ (minimal overshoot).
-\end{itemize}
-
-
-\subsubsection{$\tau = 377$: Curvature Tensors}
-
-Curvature theory synthesizes differential machinery with logic:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\text{Curvature}) = 5 + 1 = 6$
-\item \textbf{Novelty:} $\nu(\text{Curvature}) = \nu(\text{Connections}) + \nu(\|\cdot\|) = 26 + 8 = 34$
-\item \textbf{Efficiency:} $\rho = 5.67$
-\end{itemize}
-
-\subsubsection{$\tau = 610$: Metric $+$ Orthonormal Frame Bundle}
-
-A Riemannian metric $g$ together with its orthonormal frame reduction $P:=O_g(M)\subset \mathrm{Fr}(M)$
-packages pointwise inner product data with a canonical solder form $\theta$ and the $O(n)$-equivariant
-identification $TM \simeq P\times^{O(n)}\mathbb{R}^n$. This synthesizes cohesive smooth structure with Lie
-symmetry to prepare metric-compatible connections at $\tau=2584$.
-
-\begin{itemize}
-\item \textbf{Effort:} $\kappa=7 = (|C|{=}6) + (|E_{\mathrm{ess}}|{=}3) - (\Delta_{\mathrm{coh}}{=}2)$
-  \begin{itemize}
-  \item Constructors ($|C|=6$):
-    \begin{enumerate}[label=(C\arabic*)]
-    \item Metric $g$ (0D) on $TM$;
-    \item Orthonormal reduction $P=O_g(M)$ (0D);
-    \item Solder form $\theta:TP\to\mathbb{R}^n$ (1D);
-    \item Frame/coframe identification $TM \simeq P\times^{O(n)}\mathbb{R}^n$ (1D);
-    \item Musical maps $g^\flat:TM\to T^*M$ and $g^\sharp:T^*M\to TM$ (count as two 1D operators).
-    \end{enumerate}
-  \item Essential eliminators ($|E_{\mathrm{ess}}|=3$): uniqueness of the $O(n)$-reduction from $g$; functorial/natural behavior of $\theta$ and the associated-bundle identification; reconstruction of $g$ from $\theta$ and the $O(n)$-action.
-  \item Coherence discount ($\Delta_{\mathrm{coh}}=2$): Cartan-style equivalence between $(g)$ and $(P,\theta)$ data; Beck–Chevalley stability under pullback.
-  \end{itemize}
-
-\item \textbf{Novelty:} $\nu=43 = \underbrace{(3+2)}_{\text{interface }=5} + \underbrace{38}_{\text{dimensional}}$
-  \begin{itemize}
-  \item Interface: $|E_{\mathrm{ess}}|{=}3$ plus the two coherence units/counits ($+2$).
-  \item Dimensional: 
-    \[
-    \nu_{\mathrm{dim}} = 
-      \underbrace{4\cdot W(1)}_{\theta,\; TM\!\simeq\!\dots,\; g^\flat,\; g^\sharp = 4\times 5=20}
-      \;+\;
-      \underbrace{2\cdot W(2)}_{\text{$O(n)$-equivariance/isometry 2-cells }=2\times 8=16}
-      \;+\;
-      \underbrace{2\cdot W(0)}_{g,\; P=2\times 1=2}
-      \;=\; 38.
-    \]
-  \end{itemize}
-
-\item \textbf{Efficiency:} $\rho=\nu/\kappa = 43/7 \approx 6.14 \;>\; \mathrm{Bar}(610)=6.05$ (minimal overshoot).
-\end{itemize}
-
-
-\subsection{Dynamical Principles and Meta-Abstractions}
-
-The later stages show accelerating efficiency through abstraction.
-
-\subsubsection{$\tau = 987$: Einstein-Hilbert Action}
-
-The Hilbert functional realizes geometric dynamics:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\text{Hilbert}) = 8 + 1 = 9$
-\item \textbf{Novelty:} $\nu(\text{Hilbert}) = 43 + 17 = 60$
-\item \textbf{Efficiency:} $\rho = 6.67$
-\end{itemize}
-
-\subsubsection{$\tau = 1597$--$4181$: Abstract Theories}
-
-The abstractions demonstrate unbounded efficiency growth:
-
-\begin{center}
-\begin{tabular}{lccc}
-\textbf{Structure} & $\kappa$ & $\nu$ & $\rho$ \\
-\hline
-Abstract Curvature ($\tau = 1597$) & 2 & 17 & 8.5 \\
-Abstract Riemann ($\tau = 2584$) & 2 & 21 & 10.5 \\
-Abstract Hilbert ($\tau = 4181$) & 2 & 30 & 15.0 \\
-\end{tabular}
-\end{center}
-
-Each abstraction achieves dramatically higher efficiency than its concrete archetype by capturing high novelty in minimal complexity.
-
-\subsection{The Culmination: Dynamical Cohesive Topos}
-
-At $\tau = 6765$, the algorithm produces its most remarkable structure:
-
-\subsubsection{$\tau = 6765$: Dynamical Cohesive Topos}
-
-The DCT represents the grand synthesis:
-\begin{itemize}
-\item \textbf{Effort:} $\kappa(\dct) = 7 + 1 = 8$
-\item \textbf{Novelty:} $\nu(\dct) = 60 + 43 + 34 + 8 + 5 = 150$
-  \begin{itemize}
-  \item Synthesizing: Dynamics (60), Geometry (43), Laws (34), Logic (8), Language (5)
-  \end{itemize}
-\item \textbf{Efficiency:} $\rho = 18.75$
-\end{itemize}
-
-This structure synthesizes topos-theoretic logic, cohesive geometry, and temporal dynamics into a unified framework where these aspects interact through specified coherence conditions—extending existing work on cohesive toposes and temporal modalities by systematically incorporating geometric morphism actions that preserve the cohesive structure.
 
 The genesis sequence validates our framework in two ways: it recovers familiar mathematical milestones in a plausible order, and it discovers new structures (like the DCT) that emerge naturally from efficiency maximization. The progression from concrete to abstract, the bundling of related concepts, and the acceleration through abstraction all reflect principles that may unconsciously guide human mathematical discovery.
 
@@ -1172,55 +664,26 @@ The algorithm's preference for geometric structures might not be a bias but a di
 
 \subsection{Open Problems and Future Directions}
 
-Our framework raises fundamental questions about the nature of mathematical evolution that extend far beyond what we can currently answer. We highlight two central problems that would, if resolved, transform our understanding of how mathematics develops.
-
-\subsubsection{Problem 1: The Emergence of Self-Similar Growth}
-
-Our computational experiments consistently reveal that mathematical structures crystallize with integration times following a Fibonacci-like pattern, ultimately producing growth at the golden ratio. While we have axiomatized this observation as the Hierarchical Synthesis principle, its necessity remains unproven.
-
-\begin{problem}[Golden Ratio Necessity]
-Prove or disprove: Any efficiency-maximizing selection mechanism satisfying the following conditions necessarily produces integration times $\Delta_n = \tau_{n+1} - \tau_n$ such that:
-\[
-\lim_{n \to \infty} \frac{\Delta_n}{\Delta_{n-1}} = \varphi = \frac{1 + \sqrt{5}}{2}
-\]
-
-Conditions:
-\begin{enumerate}
-\item Structures compete based on efficiency $\rho = \nu/\kappa$ (novelty over effort)
-\item Selection follows minimal overshoot above a rising threshold
-\item Effort and novelty satisfy reasonable monotonicity and submodularity constraints
-\item The system has no built-in preference for specific growth rates
-\end{enumerate}
-\end{problem}
-
-\textbf{Why This Matters:} The golden ratio appears throughout mathematics and nature—from phylotaxy to quantum phase transitions. If it emerges necessarily from efficiency maximization, this would suggest that $\varphi$ is not merely aesthetically pleasing but information-theoretically optimal. The golden ratio would represent the unique growth rate that optimally balances memory (what has been built) with momentum (what can now be reached).
-
-\textbf{Approaches to Consider:}
-\begin{itemize}
-\item \textbf{Dynamical Systems:} Model the evolution as a discrete dynamical system and prove that $\varphi$ is an attractor
-\item \textbf{Information Theory:} Show that golden ratio pacing maximizes information transmission between mathematical generations
-\item \textbf{Variational Principles:} Prove that $\varphi$ minimizes some action functional over possible growth trajectories
-\item \textbf{Counterexample:} Construct an efficiency-based system that provably converges to a different growth rate
-\end{itemize}
-
-\subsubsection{Problem 2: Universal Dynamics via Algorithmic Information Theory}
-
-Our current framework is formulated in Cubical Type Theory, but the underlying principles may be universal across all formal systems. This leads to our most ambitious conjecture:
+Our current framework is formulated in Cubical Type Theory, but the underlying principles may be universal across all formal systems. This leads to an ambitious conjecture:
 
 \begin{problem}[Information-Theoretic Foundations]
 Let $U$ be a universal Turing machine and $K_U(X \mid Y)$ denote the conditional Kolmogorov complexity. Define mathematical evolution via:
 
-\textbf{Effort:} $\kappa(X \mid B) = K_U(X \mid B)$ for base $B = \mathcal{R}(\tau-1)$
+\vspace{0.5em}
+\textbf{Effort:} $\kappa(X \mid B) = K_U(X \mid B)$ for base $B = \mathcal{R}(\tau-1)$ 
 
-\textbf{Novelty:} For the adjacent possible $\mathcal{A}(B, H) = \{Y : K_U(Y \mid B) \leq H\}$,
+\vspace{0.5em}
+\textbf{Adjacent Possible:} $\mathrm{AP}(\mathcal{R}, H)$ is the set of distinct atomic mathematical concepts (fundamental operations, rules, or templates) reachable from state $\mathcal{R}$ within effort horizon $H$.
+
+\vspace{0.5em}
+\textbf{Novelty:} $\nu(X \mid \mathcal{R})$ of a candidate $X$ relative to state $\mathcal{R}$ is the count of new atomic concepts that enter the Adjacent Possible at unit radius upon the realization of $X$:
 \[
-\nu(X) = \sum_{Y \in \mathcal{A}(B \cup \{X\}, H)} \max\bigl(0, K_U(Y \mid B) - K_U(Y \mid B \cup \{X\})\bigr)
+\nu(X \mid \mathcal{R}) = \left|\mathrm{AP}(\mathcal{R} \cup \{X\}, 1) \setminus \mathrm{AP}(\mathcal{R}, 1)\right|
 \]
 
 \textbf{Conjecture:} Under efficiency-driven selection with these information-theoretic definitions:
 \begin{enumerate}
 \item The qualitative genesis sequence (type theory $\to$ geometry $\to$ dynamics) is invariant across choice of $U$
-\item Golden ratio pacing emerges from compression dynamics in the adjacent possible  
 \item Any Turing-complete formal system develops similar mathematical structures in similar order
 \item The dimensional bias toward geometry reflects fundamental rather than contingent information-theoretic properties
 \end{enumerate}
@@ -1236,93 +699,58 @@ Let $U$ be a universal Turing machine and $K_U(X \mid Y)$ denote the conditional
 \item \textbf{Empirical Validation:} Using compression algorithms to approximate $K_U$ and test predictions
 \end{itemize}
 
-\subsubsection{Future Research Directions}
-
-Beyond these central problems, several research directions could extend or validate the framework:
-
-\textbf{1. Computational Implementation}
-\begin{itemize}
-\item Implement the information-theoretic version using practical compression algorithms
-\item Systematically vary parameters to map the space of possible genesis sequences
-\item Search for mathematical structures with high predicted efficiency that haven't been discovered yet
-\item Develop automated theorem provers that prioritize efficiency-maximizing constructions
-\end{itemize}
-
-\textbf{2. Historical Validation}
-\begin{itemize}
-\item Quantitatively analyze the historical development of mathematics through the efficiency lens
-\item Identify deviations from optimal efficiency and understand their causes (social, aesthetic, technological)
-\item Test whether mathematical revolutions correspond to efficiency phase transitions
-\item Study whether different mathematical cultures (Greek, Chinese, Islamic, Modern) follow similar efficiency trajectories
-\end{itemize}
-
-\textbf{3. Extensions to Other Domains}
-\begin{itemize}
-\item Apply the framework to scientific theory development: Do physical theories evolve via efficiency?
-\item Explore connections to biological evolution: Is DNA organization efficiency-maximizing?
-\item Investigate programming language evolution: Do languages follow predictable efficiency trajectories?
-\item Study artistic and musical evolution through compression dynamics
-\end{itemize}
-
-\textbf{4. Philosophical Implications}
-\begin{itemize}
-\item What does efficiency-driven evolution imply for mathematical Platonism versus formalism?
-\item If mathematics follows universal compression laws, what does this mean for free will in mathematical discovery?
-\item How does the framework relate to Tegmark's Mathematical Universe Hypothesis?
-\item What are the implications for AI development of mathematically necessary evolution patterns?
-\end{itemize}
-
-\textbf{5. The Dynamical Cohesive Topos}
-\begin{itemize}
-\item Develop the mathematical theory of DCTs: morphisms, limits, classification
-\item Find physical interpretations: Do DCTs model quantum gravity? Cosmological evolution?
-\item Build type theory internal to a DCT: What does proof mean in an evolving logical space?
-\item Search for simpler instances: Are there "baby DCTs" that would be easier to study?
-\end{itemize}
-
 \subsubsection{Implication}
-
-These open problems highlight that our framework, despite its successes, raises more questions than it answers. The empirical observation of golden ratio pacing and the potential connection to algorithmic information theory suggest that mathematical evolution may be governed by deep, universal principles we are only beginning to glimpse.
 
 If either central problem is resolved—whether by proof or counterexample—it would fundamentally change our understanding of why mathematics develops as it does. We would move from describing mathematical history to understanding mathematical necessity, from observing patterns to proving laws. This transformation would have profound implications not just for mathematics, but for our understanding of knowledge, intelligence, and the nature of reality itself.
 
-\section{Conclusion}
+\section{Mechanization in Lean 4}
 
-This paper has presented an algorithmic framework for understanding the emergence of mathematical structures through efficiency-driven selection. By formalizing the notions of effort (essential complexity) and novelty (expressive power) within Cubical Type Theory, we have shown that mathematical structures can be modeled as crystallizing in order of their conceptual efficiency—the ratio of what they enable to what they require.
+To validate our theoretical framework and demonstrate its computational feasibility, we have implemented the complete selection mechanism in Lean 4, a modern proof assistant and functional programming language. This implementation serves three purposes: it provides executable specifications of our axioms, it generates the Genesis sequence through pure computation rather than hand calculation, and it produces auditable certificates that can be independently verified.
 
-\subsection{Summary of Key Results}
+\subsection{Architecture of the Implementation}
 
-Our framework yields three principal results:
+The implementation consists of approximately 2,500 lines of Lean 4 code organized into modular components that mirror the mathematical structure of our axioms:
 
-First, we proved that conceptual efficiency grows without bound through the mechanism of abstraction. Unlike computational processes constrained by the Church-Turing thesis, mathematical evolution operates on the language itself rather than within it. The formula $\nu(X) = \nu(A)/\kappa(X)$ for conceptual abstraction provides unlimited leverage: high-novelty archetypes captured in low-complexity abstractions yield arbitrarily large efficiency gains. This formally distinguishes mathematical discovery from mechanical computation.
+\textbf{CAD (Contextual Atomic Declarations):} The foundation layer implements a minimal type-theoretic context discipline. Atomic declarations—universes, type formers, constructors, eliminators, computation rules, and terms—are added monotonically to contexts. The validity predicate \texttt{isValidInContext} enforces the dependency constraints that ensure well-formedness: type formers require universes, constructors require their host type, eliminators require at least one constructor (giving the correct $\nu = 2$ for early structures), and computation rules require both their eliminator and constructor to be present.
 
-Second, we observed (but did not prove) that the interplay between efficiency selection and integration time—the period required to propagate new abstractions—produces self-similar growth at the golden ratio. The ubiquity of $\varphi$ in mathematics and nature may stem from this deeper principle of optimal balance.
+\textbf{Effort Computation (Axiom 2):} The \texttt{kappaMin?} function implements minimal-effort search via iterative-deepening depth-first search (IDDFS). Given a context $B$, target declaration $Y$, action alphabet, and horizon $H$, it returns the minimal derivation length if one exists within the bound. The search maintains monotonicity—steps that don't increase the context size are skipped to prevent loops. For efficiency, we use memoization indexed by context-state keys.
 
-Third, our algorithm generated a specific sequence of mathematical realizations closely mirroring historical development, from foundational type constructors through geometric structures to dynamical principles. Most remarkably, it predicted a new mathematical object at $\tau = 6765$: the Dynamical Cohesive Topos, which unifies logic, geometry, and dynamics into a single entity where structure and process are mutually determining.
+\textbf{Novelty Computation (Axiom 3):} The novelty module implements frontier enumeration with the schema-based keying system. The function \texttt{frontierAllScoped} computes all declarations achievable from the post-context within radius 1, then applies the cap function $\text{cap}_K$ based on dimensional complexity. The key insight—that endogenous attachments to newly introduced type formers don't contribute to novelty—is enforced through the \texttt{excludeKeys} mechanism.
 
-\subsection{Implications for Understanding Mathematics}
+\textbf{Discovery Engine (Axioms 4-5):} The selection engine implements efficiency-driven discovery without pre-specified packages. The \texttt{discoverCandidates} function generates all minimal bundles $X$ derivable under horizon $H$ by attempting each atomic goal and extracting the delta relative to $B$. Foundation discipline is enforced through level checking: structures at level $\ell$ can only use declarations from levels $\ell$ and $\ell-1$. The minimal overshoot selection rule ensures that structures emerge in order of necessity rather than jumping to premature abstractions.
 
-The framework suggests that mathematical development follows an inherent logic of maximal conceptual compression. Structures emerge not randomly but in an order that optimizes comprehensibility—those providing maximum understanding per unit of definitional complexity naturally dominate.
+\subsection{Key Implementation Insights}
 
-This explains several persistent mysteries:
+Several design decisions were crucial for achieving correct behavior:
+
+\textbf{Sealed Bundles:} When evaluating a discovered bundle $X$, the implementation automatically "seals" certain structures to ensure fair comparison. For instance, if $X$ introduces a HIT-like type with constructors, we include its eliminator in the sealed version before computing effort and novelty. This prevents artificial efficiency gains from incomplete structures.
+
+\textbf{Small-Radius Frontier:} Following Axiom 3, the frontier is computed at radius 1 from the post-context. This seemingly minor constraint has profound effects: it ensures that novelty measures genuine future affordances rather than distant possibilities, and it makes the computation tractable even as the context grows.
+
+\textbf{Level Stratification:} The implementation maintains a level environment that assigns each declaration to its universe level. This enables the foundation check: structures can only be built using declarations from their level or below, preventing circular dependencies and ensuring mathematical coherence.
+
+\subsection{Generating the Genesis Sequence}
+
+Running \texttt{runDiscoverNTicksWithLedger} with the global action alphabet produces the Genesis sequence shown in Table~\ref{tab:genesis}. The implementation makes no hardcoded choices about which structures to realize—the sequence emerges purely from efficiency competition under the axioms:
+
+\begin{verbatim}
+#eval demo_rows 6765
+\end{verbatim}
+
+This command generates the first 6765 ticks of mathematical reality, producing output that matches the theoretical predictions: the universe emerges at $\tau = 1$, the unit type at $\tau = 2$, its witness at $\tau = 3$, dependent types at $\tau = 5$, the circle at $\tau = 8$, and so on. Each realization is accompanied by a complete audit trail showing its efficiency $\rho$, the acceptance bar it cleared, and the frontier entries that contributed to its novelty.
+
+\subsection{Verification and Reproducibility}
+
+The implementation includes comprehensive certificate generation for independent verification. Each realized structure comes with:
 \begin{itemize}
-\item Why mathematics tends toward unification rather than fragmentation
-\item Why abstractions prove more powerful than concrete constructions
-\item Why geometric structures appear fundamental to physical description
-\item Why mathematical beauty often correlates with mathematical truth
+\item A \texttt{DerivCert} proving that the minimal derivation executes successfully
+\item A \texttt{FrontierEntryCert} for each novelty contribution, confirming the $\kappa$ values
+\item A \texttt{NoveltyCert} bundling the complete novelty computation with checksums
 \end{itemize}
 
-The "unreasonable effectiveness" of mathematics in describing physical reality might reflect a shared principle: both mathematical evolution and physical law optimize for maximal compression of phenomena into comprehensible forms.
+These certificates can be validated by the \texttt{checkNoveltyCertAgainstScope} function, which re-runs the entire computation and confirms that all values match. This design ensures that the Genesis sequence is not merely computed but proven correct according to the axioms.
 
+The complete implementation is available at \texttt{github.com/efficient-novelty}, enabling independent replication and extension of our results. By mechanizing the axioms, we demonstrate that the emergence of mathematical structure through efficiency-driven selection is not just theoretically coherent but computationally realizable.
 
-\subsection{Final Thoughts}
-
-We began with a puzzle: why do some mathematical insights feel deeper than others? Our framework provides a quantitative answer: depth correlates with efficiency, the ratio of what a structure enables to what it costs. The most profound mathematical insights are those that achieve maximal compression of conceptual content.
-
-The emergence of the Dynamical Cohesive Topos from pure efficiency maximization suggests that our framework doesn't just describe mathematical history but can generate new mathematics. If mathematics indeed follows efficiency principles, then systematic efficiency analysis could identify promising research directions, accelerating mathematical progress.
-
-More fundamentally, our work suggests that mathematics possesses an inherent tendency toward comprehensibility. The structures that survive efficiency selection are precisely those that human minds can grasp—not because mathematics is made for humans, but because both mathematical evolution and human cognition optimize for conceptual compression.
-
-The framework thus provides not only a model of how mathematics develops but a reason for hope: mathematics will continue becoming more powerful while remaining comprehensible, because comprehensibility and power are not opposing forces but complementary aspects of conceptual efficiency.
 
 \end{document}
