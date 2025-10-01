@@ -164,9 +164,8 @@ Axiom 3 schema keying:
   | AtomicDecl.declareTerm nm T =>
       if isClassifierTFName T && isSchemaNameFor nm T then
         FrontierKey.typeFormer   -- classifier schema is endogenous
-      else if isPiSigmaAlias nm T then
-        -- Π/Σ aliases at classifier level remain exact
-        FrontierKey.termExact T nm
+      else if isClassifierTFName T && isPiSigmaAlias nm T then
+        FrontierKey.typeFormer   -- Π/Σ aliases are endogenous at classifier level
       else if isCtorNeighborhoodTerm nm then
         FrontierKey.termExact T nm
       else if isSchemaNameFor nm T then
