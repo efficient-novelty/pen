@@ -30,7 +30,7 @@ open AtomicDecl
 
 /-- Interface basis from the last two layers, newest first in `layers`. -/
 def interfaceBasis (layers : List (List Target)) : List Target :=
-  PEN.Novelty.Scope.dedupBEq ((layers.take 2).join)
+  PEN.Novelty.Scope.dedupBEq ((layers.take 2).bind id)
 
 /-- Interaction profile J(X,B): filters Iₙ by applicability to X (syntactic dependency proxy). -/
 def interactionProfile (I : List Target) (targetsX : List AtomicDecl) : List Target :=
@@ -64,10 +64,10 @@ deriving Repr
 @[inline] def holds (Γ : Context) : AtomicDecl → Bool
   | .declareUniverse ℓ      => Γ.hasUniverse ℓ
   | .declareTypeFormer n    => Γ.hasTypeFormer n
-  | .declareConstructor c T => Γ.hasConstructor c
-  | .declareEliminator e T  => Γ.hasEliminator e
+  | .declareConstructor c _ => Γ.hasConstructor c
+  | .declareEliminator e _  => Γ.hasEliminator e
   | .declareCompRule e c    => Γ.hasCompRule e c
-  | .declareTerm n T        => Γ.hasTerm n
+  | .declareTerm n _        => Γ.hasTerm n
 
 /-- Goal predicate: all targets hold. -/
 @[inline] def goalAll (targets : List AtomicDecl) (Γ : Context) : Bool :=
@@ -193,7 +193,7 @@ def frontierAll (actions : List AtomicDecl)
         match iddfsMin actions (PEN.CAD.goalOfDecl Y) postBudget post with
         | none => acc
         | some (kPost, _) =>
-          if h : kPost = 0 then
+          if kPost = 0 then
             acc
           else
             let kPreEff := kappaTrunc actions B Y preBudget
@@ -212,7 +212,7 @@ def frontierAll (actions : List AtomicDecl)
   contrib01 e
 
 /-- Reduce entries to one per key, keeping maximal novelty gain; ties by minimal kPost. -/
-def reduceByKeyMaxGain (post : Context) (es : List FrontierEntry) : List FrontierEntry :=
+def reduceByKeyMaxGain (_post : Context) (es : List FrontierEntry) : List FrontierEntry :=
   let rec upsert (kNew : FrontierKey) (eNew : FrontierEntry)
       (acc : List (FrontierKey × FrontierEntry)) : List (FrontierKey × FrontierEntry) :=
     match acc with
@@ -230,7 +230,6 @@ def reduceByKeyMaxGain (post : Context) (es : List FrontierEntry) : List Frontie
   table.map (fun p => p.snd)
 
 def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry :=
-  let H          := sc.horizon
   let preBudget  := preMaxDepth sc
   let postBudget := postMaxDepth sc
   let acts       := PEN.Novelty.Scope.dedupBEq sc.actions
@@ -256,7 +255,7 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
 
 
 
-def noveltyFromFrontier (post : Context) (es : List FrontierEntry) : Nat :=
+def noveltyFromFrontier (_post : Context) (es : List FrontierEntry) : Nat :=
   sumContrib01 es
 
 /-! ############################
