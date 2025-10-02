@@ -30,7 +30,7 @@ open AtomicDecl
 
 /-- Interface basis from the last two layers, newest first in `layers`. -/
 def interfaceBasis (layers : List (List Target)) : List Target :=
-  PEN.Novelty.Scope.dedupBEq ((layers.take 2).bind id)
+  PEN.Novelty.Scope.dedupBEq ((layers.take 2).join)
 
 /-- Interaction profile J(X,B): filters Iₙ by applicability to X (syntactic dependency proxy). -/
 def interactionProfile (I : List Target) (targetsX : List AtomicDecl) : List Target :=
