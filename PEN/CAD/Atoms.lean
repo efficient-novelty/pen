@@ -26,6 +26,7 @@ namespace PEN.CAD
 /-- One irreducible context-extending step. -/
 inductive AtomicDecl
   | declareUniverse     (level : Nat)                  -- introduces U_level (abstractly)
+  | declareInfrastructure (name : String)              -- shared infrastructure flag (e.g. DepBinder)
   | declareTypeFormer   (name : String)                -- introduces a type family (e.g. Unit, Nat, ...)
   | declareConstructor  (name : String) (typeName : String) -- constructor for an existing type former
   | declareEliminator   (name : String) (typeName : String) -- eliminator/recursor for an existing type former
@@ -36,6 +37,7 @@ inductive AtomicDecl
 /-- CAD context: what has been declared so far. For simplicity we store lists. -/
 structure Context where
   universes   : List Nat                := []
+  infrastructure : List String         := []            -- shared infrastructure flags
   typeFormers : List String             := []            -- names of types
   constructors : List (String × String) := []            -- (ctorName, typeName)
   eliminators  : List (String × String) := []            -- (elimName, typeName)
@@ -55,6 +57,9 @@ def empty : Context := {}
 
 @[inline] def memStr (xs : List String) (s : String) : Bool :=
   xs.any (fun t => t == s)
+
+@[inline] def hasInfrastructure (Γ : Context) (name : String) : Bool :=
+  memStr Γ.infrastructure name
 
 @[inline] def memPair (xs : List (String × String)) (a b : String) : Bool :=
   xs.any (fun p => p.fst == a && p.snd == b)
@@ -99,6 +104,9 @@ def empty : Context := {}
 /-- Insert helpers (idempotent: keep Γ unchanged if the entry already exists). -/
 @[inline] def addUniverse (Γ : Context) (ℓ : Nat) : Context :=
   if Γ.hasUniverse ℓ then Γ else { Γ with universes := ℓ :: Γ.universes }
+
+@[inline] def addInfrastructure (Γ : Context) (name : String) : Context :=
+  if Γ.hasInfrastructure name then Γ else { Γ with infrastructure := name :: Γ.infrastructure }
 
 @[inline] def addTypeFormer (Γ : Context) (name : String) : Context :=
   if Γ.hasTypeFormer name then Γ else { Γ with typeFormers := name :: Γ.typeFormers }
@@ -169,7 +177,13 @@ def isValidInContext (decl : AtomicDecl) (ctx : Context) : Bool :=
   match decl with
   | AtomicDecl.declareUniverse 0        => true
   | AtomicDecl.declareUniverse (Nat.succ ℓ) => ctx.hasUniverse ℓ
-  | AtomicDecl.declareTypeFormer _      => not ctx.universes.isEmpty
+  | AtomicDecl.declareInfrastructure _  => ctx.hasAnyUniverse
+  | AtomicDecl.declareTypeFormer name   =>
+      let base := not ctx.universes.isEmpty
+      if name == "Pi" || name == "Sigma" then
+        base && ctx.hasInfrastructure "INFRA.DepBinder"
+      else
+        base
   | AtomicDecl.declareConstructor _ T   => hasTypeFormer ctx T
   | AtomicDecl.declareEliminator _ T    =>
       hasTypeFormer ctx T && (if elimNeedsCtor T then hasCtorOf ctx T else true)
@@ -194,6 +208,7 @@ def step (Γ : Context) (decl : AtomicDecl) : Option Context :=
     some <|
       match decl with
       | .declareUniverse ℓ            => Γ.addUniverse ℓ
+      | .declareInfrastructure n      => Γ.addInfrastructure n
       | .declareTypeFormer n          => Γ.addTypeFormer n
       | .declareConstructor n T       => Γ.addConstructor n T
       | .declareEliminator n T        => Γ.addEliminator n T

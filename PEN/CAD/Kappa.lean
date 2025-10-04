@@ -30,12 +30,13 @@ namespace PEN.CAD
 -- Canonical string key for a context.
 def ctxKey (Γ : Context) : String :=
   let ns  := Γ.universes.map toString
+  let infra := Γ.infrastructure.map (fun s => s!"I:{s}")
   let tfs := Γ.typeFormers
   let cs  := Γ.constructors.map (fun (c,t) => s!"C:{t}:{c}")
   let es  := Γ.eliminators.map  (fun (e,t) => s!"E:{t}:{e}")
   let rs  := Γ.compRules.map    (fun (e,c) => s!"R:{e}:{c}")
   let ms  := Γ.terms.map        (fun (m,t) => s!"M:{t}:{m}")
-  String.intercalate "|" (ns ++ tfs ++ cs ++ es ++ rs ++ ms)
+  String.intercalate "|" (ns ++ infra ++ tfs ++ cs ++ es ++ rs ++ ms)
 
 -- We memoize by a *string* state key to avoid requiring Hashable instances for Prod.
 abbrev Seen := HashSet String
@@ -46,6 +47,7 @@ abbrev Seen := HashSet String
 /-- Equality test for contexts via componentwise list equality. -/
 @[inline] def ctxSame (a b : Context) : Bool :=
   a.universes   == b.universes
+  && a.infrastructure == b.infrastructure
   && a.typeFormers == b.typeFormers
   && a.constructors == b.constructors
   && a.eliminators  == b.eliminators
@@ -64,6 +66,7 @@ abbrev Seen := HashSet String
     Γ.terms.any (fun p => p.fst == m && p.snd == T)
   match decl with
   | .declareUniverse ℓ      => fun Γ => Γ.hasUniverse ℓ
+  | .declareInfrastructure n => fun Γ => Γ.hasInfrastructure n
   | .declareTypeFormer n    => fun Γ => Γ.hasTypeFormer n
   | .declareConstructor c T => fun Γ => hasCtor Γ c T
   | .declareEliminator  e T => fun Γ => hasElim Γ e T
@@ -160,8 +163,8 @@ partial def dfsLimitedMemo
   let key := stateKey Γ bound
   if seen.contains key then none else
   let seen' := seen.insert key
-  let sz := (Γ.universes.length + Γ.typeFormers.length + Γ.constructors.length
-            + Γ.eliminators.length + Γ.compRules.length + Γ.terms.length)
+  let sz := (Γ.universes.length + Γ.infrastructure.length + Γ.typeFormers.length
+            + Γ.constructors.length + Γ.eliminators.length + Γ.compRules.length + Γ.terms.length)
 
   let rec tryList (as : List AtomicDecl) (seen₀ : Seen) : Option ((Nat × Context) × Seen) :=
     match as with
@@ -170,7 +173,7 @@ partial def dfsLimitedMemo
       match step Γ a with
       | none      => tryList rest seen₀
       | some Γ'   =>
-        if (Γ'.universes.length + Γ'.typeFormers.length + Γ'.constructors.length
+        if (Γ'.universes.length + Γ'.infrastructure.length + Γ'.typeFormers.length + Γ'.constructors.length
             + Γ'.eliminators.length + Γ'.compRules.length + Γ'.terms.length) ≤ sz
         then tryList rest seen₀
         else

@@ -174,6 +174,7 @@ def globalActions : List AtomicDecl :=
   , declareEliminator "rec_Unit" "Unit"
   , declareCompRule "rec_Unit" "star"
   -- Π / Σ
+  , declareInfrastructure "INFRA.DepBinder"
   , declareTypeFormer "Pi"
   , declareConstructor "lam_Pi" "Pi"
   , declareEliminator "rec_Pi" "Pi"

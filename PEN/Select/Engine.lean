@@ -140,6 +140,7 @@ def isFib (n : Nat) : Bool :=
 
 @[inline] def holdsDecl (Γ : Context) : AtomicDecl → Bool
   | .declareUniverse ℓ      => Γ.hasUniverse ℓ
+  | .declareInfrastructure n => Γ.hasInfrastructure n
   | .declareTypeFormer n    => Γ.hasTypeFormer n
   | .declareConstructor c _ => Γ.hasConstructor c
   | .declareEliminator e _  => Γ.hasEliminator e
@@ -367,6 +368,7 @@ def ctxUnion (A B : Context) : Context :=
     xs.foldl (fun acc p =>
       if acc.any (fun q => q.fst == p.fst && q.snd == p.snd) then acc else acc ++ [p]) []
   { universes    := dedupNat  (A.universes ++ B.universes)
+    infrastructure := dedupStr (A.infrastructure ++ B.infrastructure)
     typeFormers  := dedupStr  (A.typeFormers ++ B.typeFormers)
     constructors := dedupPair (A.constructors ++ B.constructors)
     eliminators  := dedupPair (A.eliminators  ++ B.eliminators)
