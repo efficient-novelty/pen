@@ -110,8 +110,7 @@ private def isExposedGoal : AtomicDecl → Bool
 def discoverCandidates (B : Context) (H : Nat) (actions : List AtomicDecl) : List DiscoveredX :=
   let goals :=
     let base := actions.filter (fun Y =>
-      isExposedGoal Y && not (holdsDecl B Y)
-      && (PEN.CAD.isValidInContext Y B || allowPrereqBoot B Y))
+      isExposedGoal Y && not (holdsDecl B Y))
     if not B.hasAnyUniverse then base ++ [AtomicDecl.declareUniverse 1] else base
   goals.foldl
     (fun acc Y =>
@@ -169,8 +168,7 @@ deriving Repr
 def seeds (B : Context) (H : Nat) (actions : List AtomicDecl) : List (Seed B) :=
   let goals := actions.filter (fun Y =>
     isExposedGoal Y
-    && not (holdsDecl B Y)
-    && (PEN.CAD.isValidInContext Y B || allowPrereqBoot B Y))
+    && not (holdsDecl B Y))
   goals.foldl
     (fun acc Y =>
       match kappaMinForDecl? B Y actions H with
