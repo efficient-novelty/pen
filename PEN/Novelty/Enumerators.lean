@@ -109,6 +109,7 @@ def actionsWithClassifierMapTerms (base : List AtomicDecl) (typeName : String) :
 
 private def holdsDecl (Γ : Context) : AtomicDecl → Bool
   | .declareUniverse ℓ      => Γ.hasUniverse ℓ
+  | .declareInfrastructure n => Γ.hasInfrastructure n
   | .declareTypeFormer n    => Γ.hasTypeFormer n
   | .declareConstructor c _ => Γ.hasConstructor c
   | .declareEliminator e _  => Γ.hasEliminator e

@@ -43,6 +43,19 @@ def actionsUnit : List AtomicDecl :=
   , declareCompRule "rec_Unit" "star"
   ]
 
+def actionsPiSigma : List AtomicDecl :=
+  [ declareUniverse 0
+  , declareInfrastructure "INFRA.DepBinder"
+  , declareTypeFormer "Pi"
+  , declareConstructor "lam_Pi" "Pi"
+  , declareEliminator "rec_Pi" "Pi"
+  , declareCompRule "rec_Pi" "lam_Pi"
+  , declareTypeFormer "Sigma"
+  , declareConstructor "pair_Sigma" "Sigma"
+  , declareEliminator "rec_Sigma" "Sigma"
+  , declareCompRule "rec_Sigma" "pair_Sigma"
+  ]
+
   -- ν(Unit)=2 under our Axiom 3 keying: star contributes +1 and the self bonus adds +1.
   #eval
     let B      := Context.empty
@@ -82,5 +95,66 @@ def actionsUnit : List AtomicDecl :=
     match noveltyForPackage? B [declareConstructor "star" "Unit"] sc I with
     | none   => "NOVELTY_FAIL"
     | some r => s!"ν(star)={r.nu}  (expected 2)"
+
+  -- Π-type former charges κ=2 (shared infra + former) and unlocks two affordances.
+  #eval
+    let B0 := Context.empty
+    let B  := (step B0 (declareUniverse 0)).getD B0
+    let targetsPi :=
+      [ declareInfrastructure "INFRA.DepBinder"
+      , declareTypeFormer "Pi" ]
+    let H  := 4
+    let sc : PEN.Novelty.Scope.ScopeConfig :=
+      { actions := actionsPiSigma
+      , horizon := H
+      , preMaxDepth?  := some H
+      , postMaxDepth? := some H
+      , exclude       := targetsPi
+      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets targetsPi }
+    let I := interfaceBasis []
+    match noveltyForPackage? B targetsPi sc I with
+    | none   => "NOVELTY_FAIL"
+    | some r => s!"Π: κ={r.kX}, ν={r.nu}  (expected κ=2, ν=2)"
+
+  -- Σ-type former shares the infra cost and unlocks three affordances.
+  #eval
+    let B0 := Context.empty
+    let B  := (step B0 (declareUniverse 0)).getD B0
+    let targetsSigma :=
+      [ declareInfrastructure "INFRA.DepBinder"
+      , declareTypeFormer "Sigma" ]
+    let H  := 4
+    let sc : PEN.Novelty.Scope.ScopeConfig :=
+      { actions := actionsPiSigma
+      , horizon := H
+      , preMaxDepth?  := some H
+      , postMaxDepth? := some H
+      , exclude       := targetsSigma
+      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets targetsSigma }
+    let I := interfaceBasis []
+    match noveltyForPackage? B targetsSigma sc I with
+    | none   => "NOVELTY_FAIL"
+    | some r => s!"Σ: κ={r.kX}, ν={r.nu}  (expected κ=2, ν=3)"
+
+  -- Π/Σ bundle shares the infrastructure once: κ=3, ν=5.
+  #eval
+    let B0 := Context.empty
+    let B  := (step B0 (declareUniverse 0)).getD B0
+    let targetsPair :=
+      [ declareInfrastructure "INFRA.DepBinder"
+      , declareTypeFormer "Pi"
+      , declareTypeFormer "Sigma" ]
+    let H  := 5
+    let sc : PEN.Novelty.Scope.ScopeConfig :=
+      { actions := actionsPiSigma
+      , horizon := H
+      , preMaxDepth?  := some H
+      , postMaxDepth? := some H
+      , exclude       := targetsPair
+      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets targetsPair }
+    let I := interfaceBasis []
+    match noveltyForPackage? B targetsPair sc I with
+    | none   => "NOVELTY_FAIL"
+    | some r => s!"ΠΣ: κ={r.kX}, ν={r.nu}  (expected κ=3, ν=5)"
 
 end PEN.Tests.Novelty

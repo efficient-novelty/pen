@@ -28,6 +28,7 @@ open AtomicDecl
 /-- Canonical printable key for `AtomicDecl` (constructor tag + names). -/
 @[inline] def declKey : AtomicDecl → String
   | .declareUniverse ℓ      => s!"U:{ℓ}"
+  | .declareInfrastructure n => s!"I:{n}"
   | .declareTypeFormer n    => s!"T:{n}"
   | .declareConstructor c T => s!"C:{T}:{c}"
   | .declareEliminator  e T => s!"E:{T}:{e}"
@@ -49,6 +50,7 @@ deriving Repr
 /-! Context membership for atoms -/
 @[inline] def holdsDecl (Γ : Context) : AtomicDecl → Bool
   | .declareUniverse ℓ      => Γ.hasUniverse ℓ
+  | .declareInfrastructure n => Γ.hasInfrastructure n
   | .declareTypeFormer n    => Γ.hasTypeFormer n
   | .declareConstructor c _ => Γ.hasConstructor c
   | .declareEliminator e _  => Γ.hasEliminator e
@@ -86,6 +88,7 @@ private def pickElimFor (actions : List AtomicDecl) (T : String) : Option Atomic
 /-- Expose type formers and ordinary atoms; hide classifier-level attachments. -/
 private def isExposedGoal : AtomicDecl → Bool
   | .declareUniverse 0           => false
+  | .declareInfrastructure _     => false
   | .declareConstructor _ T      => not (isClassifier T)
   | .declareEliminator  _ T      => not (isClassifier T)
   | .declareCompRule   _ _       => false
@@ -138,6 +141,7 @@ def discoverCandidates (B : Context) (H : Nat) (actions : List AtomicDecl) : Lis
   | .declareEliminator  _ T => some T
   | .declareTerm        _ T => some T
   | .declareTypeFormer    n => some n
+  | .declareInfrastructure _ => none
   | _                      => none
 
 @[inline] def isTypeFormerDecl : AtomicDecl → Bool

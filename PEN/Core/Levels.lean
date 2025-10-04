@@ -24,6 +24,7 @@ open AtomicDecl
 /-- Level of an atomic decl via env. -/
 @[inline] def levelOfDecl (env : LevelEnv) : AtomicDecl → Level
   | .declareUniverse _      => 0
+  | .declareInfrastructure _ => 0
   | .declareTypeFormer n    => levelOfType env n
   | .declareConstructor _ T => levelOfType env T
   | .declareEliminator _ T  => Nat.max 1 (levelOfType env T)
