@@ -207,8 +207,10 @@ Axiom 3 schema keying:
       let base : List FrontierKey :=
         [ FrontierKey.compElim s!"rec_{h}"
         , FrontierKey.termExact h s!"schema_{h}" ]
+      -- Match unit-test policy: for non-classifier TFs, suppress only the eliminator,
+      -- not the constructor. (Pi/Sigma handled elsewhere by keying rules.)
       let extra : List FrontierKey :=
-        if h == "Pi" || h == "Sigma" then [] else [FrontierKey.ctor h, FrontierKey.elim h]
+        if h == "Pi" || h == "Sigma" then [] else [FrontierKey.elim h]
       acc ++ extra ++ base) []
   else
     []
@@ -394,8 +396,9 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
 
 /-- Simple labels for atoms (for discovered X names). -/
 def atomLabel : PEN.CAD.AtomicDecl → String
-  | .declareUniverse ℓ      => s!"U{ℓ}:U"         -- was "U0"
-  | .declareTypeFormer n    => s!"type {n}"       -- was just `n`
+  | .declareUniverse ℓ      => s!"U{ℓ}:U"
+  | .declareInfrastructure i  => s!"INFRA {i}"
+  | .declareTypeFormer n    => s!"type {n}"
   | .declareConstructor c _ => c
   | .declareEliminator e _  => e
   | .declareCompRule e c    => s!"{e}∘{c}"

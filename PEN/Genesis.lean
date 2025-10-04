@@ -266,6 +266,7 @@ def atomLabel : PEN.CAD.AtomicDecl → String
   | .declareUniverse ℓ      => s!"U{ℓ}"
   | .declareTypeFormer n    => n
   | .declareConstructor c _ => c
+  | .declareInfrastructure i  => s!"INFRA {i}"
   | .declareEliminator e _  => e
   | .declareCompRule e c    => s!"{e}∘{c}"
   | .declareTerm t _        => t
@@ -406,6 +407,7 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
   let atomLabel : AtomicDecl → String
     | .declareUniverse ℓ      => s!"U{ℓ}"
     | .declareTypeFormer n    => n
+    | .declareInfrastructure i  => s!"INFRA {i}"
     | .declareConstructor c _ => c
     | .declareEliminator e _  => e
     | .declareCompRule e c    => s!"{e}∘{c}"
@@ -424,6 +426,14 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
 
 
 #eval demo_rows 3
+#print axioms dumpAllCandidatesAt
+#print axioms PEN.Genesis.dumpAllCandidatesAt
+#print axioms PEN.Genesis.preStateAt
+#print axioms PEN.Select.Engine.tickDiscover
+#print axioms PEN.Select.Engine.evalX?
+#print axioms PEN.Select.Discover.discoverCandidates
+#print axioms PEN.Select.Bar.barGlobal
+#print axioms PEN.Core.Levels.contextLevel
 #eval dumpAllCandidatesAt 2
 #eval dumpAllCandidatesAt 3
 
