@@ -773,7 +773,7 @@ def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDe
   | c1 :: cs =>
     let barVal  := c1.bar
     let all     := c1 :: cs
-    let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
+    let accept0 := all.filter (fun e => e.report.rho + eps ≥ barVal)
     let accept  := preferAccepted B accept0
     let pool    := pruneAfterAccept accept
     match pool with
@@ -797,7 +797,8 @@ def applyRealizationX (st : EngineState) (winners : List XOutcome) : EngineState
   let nuSum  := winners.foldl (fun s e => s + e.report.nu) 0
   let kSum   := winners.foldl (fun s e => s + e.report.kX) 0
   let hist'  := pushTick st.history nuSum kSum
-  let Lnew   := winners.bind (fun w => frontierTargets w.report.frontier)
+  -- was: let Lnew := winners.bind (fun w => frontierTargets w.report.frontier)
+  let Lnew  := winners.foldr (fun w acc => frontierTargets w.report.frontier ++ acc) []
   { st with
       B := B', H := 2, history := hist',
       lastRealizedTau? := some st.τ,
@@ -1032,7 +1033,7 @@ def selectWinners (eps : Float) (cands : List EvalOutcome) : TickDecision :=
   | c1 :: cs =>
     let barVal := c1.bar
     let all    := c1 :: cs
-    let accept := all.filter (fun e => floatGt e.report.rho barVal eps)
+    let accept := all.filter (fun e => e.report.rho + eps ≥ barVal)
     match accept with
     | [] =>
       -- keep the debug "best by ρ" behavior as before
@@ -1058,7 +1059,8 @@ def applyRealization (st : EngineState) (winners : List EvalOutcome) : EngineSta
   let nuSum  := winners.foldl (fun s e => s + e.report.nu) 0
   let kSum   := winners.foldl (fun s e => s + e.report.kX) 0
   let hist'  := pushTick st.history nuSum kSum
-  let Lnew   := winners.bind (fun w => frontierTargets w.report.frontier)
+  -- was: let Lnew := winners.bind (fun w => frontierTargets w.report.frontier)
+  let Lnew  := winners.foldr (fun w acc => frontierTargets w.report.frontier ++ acc) []
   { st with
       B := B', H := 2, history := hist',
       lastRealizedTau? := some st.τ,

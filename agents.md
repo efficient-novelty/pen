@@ -1,11 +1,3 @@
-# agents.md — Build Guidance for the PEN “Genesis Sequence” in Lean 4
-
-> This file tells an autonomous coding agent exactly what to implement, how to wire the modules together, and which invariants to preserve in order to reproduce the **Genesis Sequence** as defined in the paper **“The Principle of Efficient Novelty (PEN)”** and the current Lean codebase you’ve provided.
-
-It consolidates the essential concepts, algorithms, data structures, naming conventions, and acceptance criteria so the agent can extend/maintain the Lean implementation deterministically.
-
----
-
 ## 0) Scope (what to build / not build)
 
 **Goal.** Mechanize the PEN framework in Lean 4 to **discover and select** bundles of atomic declarations (“candidates X”) that maximize **efficiency**

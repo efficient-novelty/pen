@@ -204,12 +204,13 @@ Axiom 3 schema keying:
     let tns := tfNamesIn ts
     tns.foldl (fun acc h =>
       acc ++
-        [ FrontierKey.ctor h
-        , FrontierKey.elim h
+        [ -- FrontierKey.ctor h      -- ← removed
+          FrontierKey.elim h
         , FrontierKey.compElim s!"rec_{h}"
         , FrontierKey.termExact h s!"schema_{h}" ]) []
   else
     []
+
 
 @[inline] def declDependsOn (y x : AtomicDecl) : Bool :=
   match y with

@@ -59,7 +59,7 @@ def actionsUnit : List AtomicDecl :=
     let I := interfaceBasis []
     match noveltyForPackage? B [declareTypeFormer "Unit"] sc I with
     | none   => "NOVELTY_FAIL"
-    | some r => s!"ν(Unit)={r.nu}  (expected 2)"
+    | some r => s!"ν(Unit)={r.nu}  (expected 1)"
 
   -- ν(star)=2: refl_star and transport_star each contribute +1.
   #eval
