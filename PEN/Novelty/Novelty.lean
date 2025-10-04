@@ -60,6 +60,7 @@ deriving Repr
 /-- Size of a context (strictly increases when we add a genuinely new item). -/
 @[inline] def ctxSize (Γ : Context) : Nat :=
   Γ.universes.length
+  + Γ.infrastructure.length
   + Γ.typeFormers.length
   + Γ.constructors.length
   + Γ.eliminators.length
@@ -69,6 +70,7 @@ deriving Repr
 /-- Does a declaration already "hold" in the context? -/
 @[inline] def holds (Γ : Context) : AtomicDecl → Bool
   | .declareUniverse ℓ      => Γ.hasUniverse ℓ
+  | .declareInfrastructure n => Γ.hasInfrastructure n
   | .declareTypeFormer n    => Γ.hasTypeFormer n
   | .declareConstructor c _ => Γ.hasConstructor c
   | .declareEliminator e _  => Γ.hasEliminator e

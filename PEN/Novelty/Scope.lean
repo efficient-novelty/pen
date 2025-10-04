@@ -154,6 +154,7 @@ Axiom 3 schema keying:
 @[inline] def keyOfTarget (t : Target) : FrontierKey :=
   match t with
   | AtomicDecl.declareUniverse ℓ      => FrontierKey.universe ℓ
+  | AtomicDecl.declareInfrastructure _ => FrontierKey.exact t
   | AtomicDecl.declareTypeFormer _    => FrontierKey.typeFormer
   | AtomicDecl.declareConstructor _ T => FrontierKey.ctor T
   | AtomicDecl.declareEliminator _ T  => FrontierKey.elim T
@@ -203,11 +204,12 @@ Axiom 3 schema keying:
   if allTFOnly ts then
     let tns := tfNamesIn ts
     tns.foldl (fun acc h =>
-      acc ++
-        [ -- FrontierKey.ctor h      -- ← removed
-          FrontierKey.elim h
-        , FrontierKey.compElim s!"rec_{h}"
-        , FrontierKey.termExact h s!"schema_{h}" ]) []
+      let base : List FrontierKey :=
+        [ FrontierKey.compElim s!"rec_{h}"
+        , FrontierKey.termExact h s!"schema_{h}" ]
+      let extra : List FrontierKey :=
+        if h == "Pi" || h == "Sigma" then [] else [FrontierKey.ctor h, FrontierKey.elim h]
+      acc ++ extra ++ base) []
   else
     []
 
@@ -215,9 +217,12 @@ Axiom 3 schema keying:
 @[inline] def declDependsOn (y x : AtomicDecl) : Bool :=
   match y with
   | .declareUniverse _ => false
-  | .declareTypeFormer _ =>
+  | .declareInfrastructure _ => false
+  | .declareTypeFormer name =>
       match x with
       | .declareUniverse _ => true
+      | .declareInfrastructure infra =>
+          (infra == "INFRA.DepBinder") && (name == "Pi" || name == "Sigma")
       | _                  => false
   | .declareConstructor _ T =>
       match x with
@@ -240,6 +245,7 @@ Axiom 3 schema keying:
           match ctorNameOfNeighborhood? nm with
           | some c => c == c'
           | none   => false
+      | .declareInfrastructure _ => false
       | _ => false
 
 @[inline] def dependsOnTargets (y : Target) (xs : List Target) : Bool :=
