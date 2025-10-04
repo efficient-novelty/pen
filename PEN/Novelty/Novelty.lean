@@ -287,7 +287,12 @@ def noveltyForPackage?
     let es := frontierAllScoped B post sc
     let nuCore := PEN.Novelty.Scope.sumContrib01 es
     let J := interactionProfile I targets
-    let kX := kDeriv + J.length
+    -- charge interface wiring only when evaluating pure TF bundles
+    let kX :=
+      if PEN.Novelty.Scope.allTFOnly targets then
+        kDeriv + J.length
+      else
+        kDeriv
     let tfBonus := 0
     let ν := nuCore
     let ρ := if kX = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kX)
