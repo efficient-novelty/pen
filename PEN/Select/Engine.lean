@@ -775,7 +775,7 @@ def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDe
   | c1 :: cs =>
     let barVal  := c1.bar
     let all     := c1 :: cs
-    let accept0 := all.filter (fun e => e.report.rho + eps ≥ barVal)
+    let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
     let accept  := preferAccepted B accept0
     let pool    := pruneAfterAccept accept
     match pool with
@@ -1035,7 +1035,7 @@ def selectWinners (eps : Float) (cands : List EvalOutcome) : TickDecision :=
   | c1 :: cs =>
     let barVal := c1.bar
     let all    := c1 :: cs
-    let accept := all.filter (fun e => e.report.rho + eps ≥ barVal)
+    let accept := all.filter (fun e => floatGt e.report.rho barVal eps)
     match accept with
     | [] =>
       -- keep the debug "best by ρ" behavior as before
