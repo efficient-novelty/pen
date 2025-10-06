@@ -110,7 +110,7 @@ private def isExposedGoal : AtomicDecl → Bool
 def discoverCandidates (B : Context) (H : Nat) (actions : List AtomicDecl) : List DiscoveredX :=
   let goals :=
     if not B.hasAnyUniverse then
-      [AtomicDecl.declareUniverse 0]
+      [AtomicDecl.declareUniverse 1, AtomicDecl.declareUniverse 0]
     else
       actions.filter (fun Y =>
         isExposedGoal Y && not (holdsDecl B Y))
@@ -170,7 +170,7 @@ deriving Repr
 def seeds (B : Context) (H : Nat) (actions : List AtomicDecl) : List (Seed B) :=
   let goals :=
     if not B.hasAnyUniverse then
-      [AtomicDecl.declareUniverse 0]
+      [AtomicDecl.declareUniverse 1, AtomicDecl.declareUniverse 0]
     else
       actions.filter (fun Y =>
         isExposedGoal Y
