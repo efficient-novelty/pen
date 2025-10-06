@@ -191,6 +191,11 @@ def isFib (n : Nat) : Bool :=
       | _ => acc)
     []
 
+@[inline] def tfOnly (ts : List AtomicDecl) : List AtomicDecl :=
+  ts.filter (fun
+    | .declareTypeFormer _ => true
+    | _ => false)
+
 
 /-- For each constructor c : T in `ts`, propose the two point-neighborhood terms. -/
 @[inline] def neighborhoodTermsForCtors (ts : List AtomicDecl) : List AtomicDecl :=
@@ -751,7 +756,7 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
 
   let exTargets : List AtomicDecl :=
     if isPiSigmaDual targetsCore && H ≤ 3 then
-      []
+      tfOnly targetsCore
     else
       targetsCore
 
@@ -1061,7 +1066,7 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
 
             let exTargets : List AtomicDecl :=
               if isPiSigmaDual targetsSealed && H ≤ 3 then
-                []
+                tfOnly targetsSealed
               else
                 targetsSealed
 
