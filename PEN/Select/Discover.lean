@@ -109,9 +109,11 @@ private def isExposedGoal : AtomicDecl → Bool
 -/
 def discoverCandidates (B : Context) (H : Nat) (actions : List AtomicDecl) : List DiscoveredX :=
   let goals :=
-    let base := actions.filter (fun Y =>
-      isExposedGoal Y && not (holdsDecl B Y))
-    if not B.hasAnyUniverse then base ++ [AtomicDecl.declareUniverse 1] else base
+    if not B.hasAnyUniverse then
+      [AtomicDecl.declareUniverse 0]
+    else
+      actions.filter (fun Y =>
+        isExposedGoal Y && not (holdsDecl B Y))
   goals.foldl
     (fun acc Y =>
       match kappaMinForDecl? B Y actions H with
@@ -128,7 +130,7 @@ def discoverCandidates (B : Context) (H : Nat) (actions : List AtomicDecl) : Lis
                   targets := X,
                   post    := postX,
                   kX      := X.length,
-                  steps   := X      -- foundation audit checks exactly what we install
+                  steps   := cert.deriv   -- foundation audit checks the full derivation
                 }]
             | none => acc   -- should not happen if X comes from a valid derivation
     )
@@ -166,9 +168,13 @@ structure Seed (start : Context) where
 deriving Repr
 
 def seeds (B : Context) (H : Nat) (actions : List AtomicDecl) : List (Seed B) :=
-  let goals := actions.filter (fun Y =>
-    isExposedGoal Y
-    && not (holdsDecl B Y))
+  let goals :=
+    if not B.hasAnyUniverse then
+      [AtomicDecl.declareUniverse 0]
+    else
+      actions.filter (fun Y =>
+        isExposedGoal Y
+        && not (holdsDecl B Y))
   goals.foldl
     (fun acc Y =>
       match kappaMinForDecl? B Y actions H with
@@ -219,7 +225,7 @@ def discoverTFPairBundles (B : Context) (H : Nat) (actions : List AtomicDecl) : 
                   targets := X,
                   post    := postX,   -- recomputed from delta only
                   kX      := X.length,
-                  steps   := X        -- audit exactly what we install
+                  steps   := cert.deriv
                 }]
             | none => acc
         | none => acc)
@@ -265,7 +271,7 @@ def discoverHITCoreBundles (B : Context) (H : Nat) (actions : List AtomicDecl) :
                       targets := X,
                       post    := postX,      -- << recomputed post (no leakage)
                       kX      := X.length,
-                      steps   := X           -- << audit exactly what we install
+                      steps   := cert.deriv
                     }]
                 | none => []
           | none => acc
@@ -356,7 +362,7 @@ def discoverHITBundlesGeneric (B : Context) (H : Nat) (actions : List AtomicDecl
                           targets := X,
                           post    := postX,      -- << recomputed post (no leakage)
                           kX      := X.length,
-                          steps   := X           -- << audit exactly what we install
+                          steps   := cert.deriv
                         }]
                     | none => []
 
@@ -405,7 +411,7 @@ def discoverHITFullBundles (B : Context) (H : Nat) (actions : List AtomicDecl) :
                       targets := X,
                       post    := postX,      -- << recomputed post (no leakage)
                       kX      := X.length,
-                      steps   := X           -- << audit exactly what we install
+                      steps   := cert.deriv
                     }]
                 | none => []
 
