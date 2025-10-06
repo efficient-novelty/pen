@@ -749,8 +749,14 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
           []
     | none => []
 
+  let exTargets : List AtomicDecl :=
+    if isPiSigmaDual targetsCore && H ≤ 3 then
+      []
+    else
+      targetsCore
+
   let baseKeys :=
-    keysOfTargets targetsCore ++ hostSuppress ++ elimSuppress
+    keysOfTargets exTargets ++ hostSuppress ++ elimSuppress
 
   let endo' :=
     if isPiSigmaDual targetsCore then
@@ -765,7 +771,7 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
       horizon       := H
       preMaxDepth?  := some H
       postMaxDepth? := some H
-      exclude       := targetsCore
+      exclude       := exTargets
       excludeKeys   := exKeys }
   let targets1 := sealHITTargets actions''' X.targets
   -- Keep Π/Σ pair pure at small radius so κ fits within H=3 (τ≈5).
@@ -1053,8 +1059,14 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
                     []
               | none => []
 
+            let exTargets : List AtomicDecl :=
+              if isPiSigmaDual targetsSealed && H ≤ 3 then
+                []
+              else
+                targetsSealed
+
             let baseKeys :=
-              keysOfTargets targetsSealed ++ hostSuppress ++ elimSuppress
+              keysOfTargets exTargets ++ hostSuppress ++ elimSuppress
 
             let endo' :=
               if isPiSigmaDual targetsSealed then
@@ -1070,7 +1082,7 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
                 horizon       := H
                 preMaxDepth?  := some H
                 postMaxDepth? := some H
-                exclude       := targetsSealed
+                exclude       := exTargets
                 excludeKeys   := exKeys }
 
             match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc I (maxDepthX := H) with
