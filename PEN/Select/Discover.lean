@@ -113,7 +113,11 @@ def discoverCandidates (B : Context) (H : Nat) (actions : List AtomicDecl) : Lis
       [AtomicDecl.declareUniverse 1, AtomicDecl.declareUniverse 0]
     else
       actions.filter (fun Y =>
-        isExposedGoal Y && not (holdsDecl B Y))
+        isExposedGoal Y && not (holdsDecl B Y) &&
+        match Y with
+        | .declareEliminator _ T =>
+            isClassifier T || B.hasConstructorFor T
+        | _ => true)
   goals.foldl
     (fun acc Y =>
       match kappaMinForDecl? B Y actions H with
@@ -174,7 +178,11 @@ def seeds (B : Context) (H : Nat) (actions : List AtomicDecl) : List (Seed B) :=
     else
       actions.filter (fun Y =>
         isExposedGoal Y
-        && not (holdsDecl B Y))
+        && not (holdsDecl B Y)
+        && match Y with
+           | .declareEliminator _ T =>
+               isClassifier T || B.hasConstructorFor T
+           | _ => true)
   goals.foldl
     (fun acc Y =>
       match kappaMinForDecl? B Y actions H with
