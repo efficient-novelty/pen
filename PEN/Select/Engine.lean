@@ -735,22 +735,30 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
       postMaxDepth? := some H
       exclude       := targetsCore
       excludeKeys   := exKeys }
-  let targetsFinal :=
-    sealPiSigmaTargets actions''' targetsCore
+  let targets1      := sealHITTargets actions''' X.targets
+  let targetsSealed := sealPiSigmaTargets actions''' targets1
 
-  let I := PEN.Novelty.Novelty.interfaceBasis st.layers
-  match PEN.Novelty.Novelty.noveltyForPackage? B targetsFinal sc I (maxDepthX := H) with
-    | none => none
-    | some rep0 => do
-        let rep := rep0
-        let diag := (PEN.Novelty.Scope.Debug.frontierWithDiag B rep.post sc).2
-        if cfg.debugFrontier then
-          dbg_trace (PEN.Novelty.Scope.Debug.render diag)
-        let δ   := rep.rho - bar
-        let usedLvls :=
-          let raw := X.steps.map (levelOfDecl levelEnv)
-          raw.foldl (fun acc ℓ => if acc.any (· == ℓ) then acc else acc ++ [ℓ]) []
-        return { x := X, report := rep, bar := bar, overshoot := δ, usedLvls := usedLvls }
+  let Lstar := contextLevel levelEnv B
+  match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) actions''' H with
+  | none => none
+  | some (_kX, certX) =>
+      let okFound := foundationOKForTargets levelEnv Lstar certX.deriv targetsSealed
+      if !okFound then
+        none
+      else
+        let I := PEN.Novelty.Novelty.interfaceBasis st.layers
+        match PEN.Novelty.Novelty.noveltyForPackage? B targetsSealed sc I (maxDepthX := H) with
+        | none => none
+        | some rep0 => do
+            let rep := rep0
+            let diag := (PEN.Novelty.Scope.Debug.frontierWithDiag B rep.post sc).2
+            if cfg.debugFrontier then
+              dbg_trace (PEN.Novelty.Scope.Debug.render diag)
+            let δ   := rep.rho - bar
+            let usedLvls :=
+              let raw := certX.deriv.map (levelOfDecl levelEnv)
+              raw.foldl (fun acc ℓ => if acc.any (· == ℓ) then acc else acc ++ [ℓ]) []
+            return { x := X, report := rep, bar := bar, overshoot := δ, usedLvls := usedLvls }
 
 /-- Decision type for discovery ticks (separate from package TickDecision). -/
 inductive XTickDecision
@@ -836,6 +844,12 @@ let admissible : List DiscoveredX :=
     smallRadiusCapOK st.B H X.targets &&
     let Lx := targetLevel levelEnv X.targets
     let foundationOK := foundationOKForTargets levelEnv Lstar X.steps X.targets
+    let bootOK :=
+      if st.B.hasAnyUniverse then true
+      else
+        X.targets.all (fun a => match a with | .declareUniverse _ => true | _ => false)
+        &&
+        X.targets.any (fun a => match a with | .declareUniverse 0 => true | _ => false)
     let goodBundle :=
       match commonHost? X.targets with
       | some h =>
@@ -844,10 +858,10 @@ let admissible : List DiscoveredX :=
           else if looksLikeHITHost cfg.actions h then
             (not (allTFOnly X.targets)) && isFullForHost X.targets h
           else
-            true
+            attachesToB st.B X.targets  -- don’t sprout isolated non-HIT TFs
       | none => allTFOnly X.targets || allUniversesOnly X.targets
 
-    (Lx ≤ Lstar + 1) && foundationOK && goodBundle)
+    (Lx ≤ Lstar + 1) && foundationOK && bootOK && goodBundle)
     -- score
     let evals : List XOutcome := dedupXByTargets <|
       admissible.foldl
