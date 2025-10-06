@@ -758,8 +758,13 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
       postMaxDepth? := some H
       exclude       := targetsCore
       excludeKeys   := exKeys }
-  let targets1      := sealHITTargets actions''' X.targets
-  let targetsSealed := sealPiSigmaTargets actions''' targets1
+  let targets1 := sealHITTargets actions''' X.targets
+  -- Keep Π/Σ pair pure at small radius so κ fits within H=3 (τ≈5).
+  let targetsSealed :=
+    if isPiSigmaDual targets1 && H ≤ 3 then
+      targets1
+    else
+      sealPiSigmaTargets actions''' targets1
 
   let Lstar := contextLevel levelEnv B
   match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) actions''' H with
@@ -946,7 +951,12 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
       let targets0 := pkg.targets
       let targetsCore := sealHITCoreNoElim pkg.actions targets0
       let targets1 := sealHITTargets pkg.actions targets0
-      let targetsSealed := sealPiSigmaTargets pkg.actions targets1
+      -- Same policy as discovery: don't bulk up Π/Σ at small radius.
+      let targetsSealed :=
+        if isPiSigmaDual targets1 && H ≤ 3 then
+          targets1
+        else
+          sealPiSigmaTargets pkg.actions targets1
 
       -- *** gate AFTER sealing ***
       let goodBundle :=
