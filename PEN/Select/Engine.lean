@@ -364,6 +364,11 @@ open PEN.Select.Discover  -- for `hostOf`
     , PEN.Novelty.Scope.FrontierKey.termExact h "alias_Sigma_family"
     ] ++ nbs
 
+@[inline] def isPiSigmaAliasKey : PEN.Novelty.Scope.FrontierKey → Bool
+  | .termExact "Pi" "alias_Pi_family"       => true
+  | .termExact "Sigma" "alias_Sigma_family" => true
+  | _                                         => false
+
 
 @[inline] def foundationOKForTargets
   (levelEnv : LevelEnv) (Lstar : Nat) (steps targets : List AtomicDecl) : Bool :=
@@ -744,12 +749,16 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
           []
     | none => []
 
-  let exKeys :=
-    PEN.Novelty.Scope.dedupBEq
-      (keysOfTargets targetsCore
-       ++ endoKeysForTFSet targetsCore
-       ++ hostSuppress
-       ++ elimSuppress)
+  let baseKeys :=
+    keysOfTargets targetsCore ++ hostSuppress ++ elimSuppress
+
+  let endo' :=
+    if isPiSigmaDual targetsCore then
+      (endoKeysForTFSet targetsCore).filter (fun k => !isPiSigmaAliasKey k)
+    else
+      endoKeysForTFSet targetsCore
+
+  let exKeys := PEN.Novelty.Scope.dedupBEq (baseKeys ++ endo')
 
   let sc : ScopeConfig :=
     { actions       := actions'''
@@ -1044,12 +1053,16 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
                     []
               | none => []
 
-            let exKeys :=
-              PEN.Novelty.Scope.dedupBEq
-                (keysOfTargets targetsSealed
-                 ++ endoKeysForTFSet targetsSealed
-                 ++ hostSuppress
-                 ++ elimSuppress)
+            let baseKeys :=
+              keysOfTargets targetsSealed ++ hostSuppress ++ elimSuppress
+
+            let endo' :=
+              if isPiSigmaDual targetsSealed then
+                (endoKeysForTFSet targetsSealed).filter (fun k => !isPiSigmaAliasKey k)
+              else
+                endoKeysForTFSet targetsSealed
+
+            let exKeys := PEN.Novelty.Scope.dedupBEq (baseKeys ++ endo')
 
             let I := PEN.Novelty.Novelty.interfaceBasis st.layers
             let sc : ScopeConfig :=
