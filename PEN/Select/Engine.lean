@@ -236,10 +236,13 @@ open PEN.Select.Discover
 @[inline] def isSubsetTargets (xs ys : List AtomicDecl) : Bool :=
   xs.all (fun a => ys.any (· == a))
 
+/-- Keep TF-only cores even if supersets add non-TF atoms. -/
 @[inline] def suppressSubbundles (xs : List (DiscoveredX)) : List (DiscoveredX) :=
   xs.filter (fun x =>
     not (xs.any (fun y =>
-      (¬ (x.targets == y.targets)) && isSubsetTargets x.targets y.targets)))
+      (¬ (x.targets == y.targets)) &&
+      isSubsetTargets x.targets y.targets &&
+      (PEN.Novelty.Scope.allTFOnly x.targets && PEN.Novelty.Scope.allTFOnly y.targets))))
 
 open PEN.Select.Discover  -- for `hostOf`
 
@@ -858,6 +861,7 @@ let admissible : List DiscoveredX :=
           else if looksLikeHITHost cfg.actions h then
             (not (allTFOnly X.targets)) && isFullForHost X.targets h
           else
+            PEN.Novelty.Scope.allTFOnly X.targets ||
             attachesToB st.B X.targets  -- don’t sprout isolated non-HIT TFs
       | none => allTFOnly X.targets || allUniversesOnly X.targets
 
@@ -927,8 +931,11 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
         | some h =>
             if isClassifierTypeName h then
               sealedClassifierBundle targetsSealed
-            else
+            else if looksLikeHITHost pkg.actions h then
               isFullForHost targetsSealed h
+            else
+              PEN.Novelty.Scope.allTFOnly targetsSealed ||
+              attachesToB B targetsSealed
         | none => true
 
       if !goodBundle then
