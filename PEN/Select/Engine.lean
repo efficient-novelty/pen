@@ -280,6 +280,23 @@ open PEN.Select.Discover  -- for `hostOf`
   | .declareTypeFormer n => PEN.Novelty.Scope.isClassifierTFName n
   | _ => false
 
+@[inline] def tfOrInfraOnly (ts : List AtomicDecl) : Bool :=
+  ts.all (fun a =>
+    match a with
+    | .declareTypeFormer _     => true
+    | .declareInfrastructure _ => true
+    | _                        => false)
+
+@[inline] def classifierTFCount (ts : List AtomicDecl) : Nat :=
+  ts.foldl (fun s a =>
+    s +
+      match a with
+      | .declareTypeFormer n => if isClassifierTypeName n then 1 else 0
+      | _                    => 0) 0
+
+@[inline] def isClassifierTFSetWithInfra (ts : List AtomicDecl) : Bool :=
+  tfOrInfraOnly ts && classifierTFCount ts ≥ 2
+
 @[inline] def isPureClassifierTFSet (ts : List AtomicDecl) : Bool :=
   allTFOnly ts && (ts.filter isClassifierTFDecl).length ≥ 2
 
@@ -661,7 +678,7 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
   /- compute enumerators, action tweaks, and excludes based on X -/
   open PEN.Novelty.Enumerators in
   let actions' : List AtomicDecl :=
-    if isPureClassifierTFSet X.targets then
+    if isPureClassifierTFSet X.targets || isClassifierTFSetWithInfra X.targets then
       let hasPiSigma := containsTF "Pi" X.targets && containsTF "Sigma" X.targets
       if hasPiSigma && H ≥ 3 then
         PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
@@ -866,7 +883,10 @@ let admissible : List DiscoveredX :=
           else
             PEN.Novelty.Scope.allTFOnly X.targets ||
             attachesToB st.B X.targets  -- don’t sprout isolated non-HIT TFs
-      | none => allTFOnly X.targets || allUniversesOnly X.targets
+      | none =>
+          allUniversesOnly X.targets
+          || allTFOnly X.targets
+          || isClassifierTFSetWithInfra X.targets
 
     (Lx ≤ Lstar + 1) && foundationOK && bootOK && goodBundle)
     -- score
@@ -974,7 +994,7 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
           match fullHitHost? with
           | some h => actionsWithPiSigmaAliases actionsWithMaps h
           | none   =>
-              if isPureClassifierTFSet targetsSealed then
+              if isPureClassifierTFSet targetsSealed || isClassifierTFSetWithInfra targetsSealed then
                 let hasPiSigma := containsTF "Pi" targetsSealed && containsTF "Sigma" targetsSealed
                 if hasPiSigma && H ≥ 3 then
                   PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
