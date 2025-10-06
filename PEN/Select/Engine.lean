@@ -11,7 +11,7 @@
   Selection policy (matches Axiom 4 & 5, simplified):
     - Admissible if κ(X|B) exists within the current budget H.
     - Compute novelty report (κ, ν, ρ) at horizon H.
-    - Acceptance if ρ > Bar(history).
+    - Acceptance if ρ ≥ Bar(history).
     - Winners: minimal overshoot (ρ - Bar), tie-break by minimal κ; if still tied → superposition.
     - Update:
         realize:   B := union of winners' post contexts; pushTick (Σν, Σκ); H := 2
@@ -134,6 +134,9 @@ def isFib (n : Nat) : Bool :=
 
 @[inline] def floatGt (x y : Float) (eps : Float := 1e-9) : Bool :=
   x > y + eps
+
+@[inline] def floatGe (x y : Float) (eps : Float := 1e-9) : Bool :=
+  x + eps ≥ y
 
 @[inline] def approxEq (x y : Float) (eps : Float := 1e-9) : Bool :=
   Float.abs (x - y) ≤ eps
@@ -776,7 +779,7 @@ structure XTickResult where
 deriving Repr
 
 /-- Selection for discovered X’s:
-    - accept only those with ρ > bar
+    - accept only those with ρ ≥ bar
     - prefer **attached** work (if any); else keep all accepted
     - among that pool, pick **minimal overshoot**; tie-break by minimal κ
     - realize all ties (superposition) when κ is also tied. -/
@@ -786,7 +789,7 @@ def selectWinnersX (B : Context) (eps : Float) (cands : List XOutcome) : XTickDe
   | c1 :: cs =>
     let barVal  := c1.bar
     let all     := c1 :: cs
-    let accept0 := all.filter (fun e => floatGt e.report.rho barVal eps)
+    let accept0 := all.filter (fun e => floatGe e.report.rho barVal eps)
     let accept  := preferAccepted B accept0
     let pool    := pruneAfterAccept accept
     match pool with
@@ -1056,7 +1059,7 @@ def selectWinners (eps : Float) (cands : List EvalOutcome) : TickDecision :=
   | c1 :: cs =>
     let barVal := c1.bar
     let all    := c1 :: cs
-    let accept := all.filter (fun e => floatGt e.report.rho barVal eps)
+    let accept := all.filter (fun e => floatGe e.report.rho barVal eps)
     match accept with
     | [] =>
       -- keep the debug "best by ρ" behavior as before
