@@ -427,7 +427,7 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
 
 #eval demo_rows 5
 --#eval dumpAllCandidatesAt 1
---#eval dumpAllCandidatesAt 5
+#eval dumpAllCandidatesAt 5
 
 
 end PEN.Genesis
