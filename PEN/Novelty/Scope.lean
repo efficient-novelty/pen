@@ -375,7 +375,8 @@ def postDistances (post : Context) (actions : List AtomicDecl) (H : Nat)
 /-- Gather, exclude, and deduplicate raw targets from the post context. -/
 def gatherTargets (post : Context) (cfg : ScopeConfig) : List Target :=
   let fromActions      := cfg.actions
-  let fromEnumerators  := cfg.enumerators.bind (· post)
+  let fromEnumerators  : List Target :=
+    List.join (cfg.enumerators.map (fun en => en post))
   let combined         := dedupBEq (fromActions ++ fromEnumerators)
   let excluded         := dedupBEq cfg.exclude
   filterNotIn combined excluded
@@ -513,7 +514,8 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
 
   -- Stage 1: enumerate targets (actions + enumerators, with name-based excludes recorded)
   let fromActions := cfg.actions
-  let fromEnums   := cfg.enumerators.bind (· post)
+  let fromEnums   : List Target :=
+    List.join (cfg.enumerators.map (fun en => en post))
   let allEnum : List Target := dedupBEq (fromActions ++ fromEnums)
   let enumerated : List (Target × FrontierKey) :=
     allEnum.map (fun t => (t, keyOfTarget t))
