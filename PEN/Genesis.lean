@@ -425,16 +425,9 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
      s!"ρ={e.report.rho}  κ={e.report.kX}  ν={e.report.nu}  Δ={e.report.rho - bar}   X={nameOfX e.x.targets}"))
 
 
-#eval demo_rows 3
-#print axioms dumpAllCandidatesAt
-#print axioms PEN.Genesis.dumpAllCandidatesAt
-#print axioms PEN.Genesis.preStateAt
-#print axioms PEN.Select.Engine.tickDiscover
-#print axioms PEN.Select.Engine.evalX?
-#print axioms PEN.Select.Discover.discoverCandidates
-#print axioms PEN.Select.Bar.barGlobal
-#print axioms PEN.Core.Levels.contextLevel
-#eval dumpAllCandidatesAt 2
-#eval dumpAllCandidatesAt 3
+#eval demo_rows 5
+--#eval dumpAllCandidatesAt 1
+--#eval dumpAllCandidatesAt 5
+
 
 end PEN.Genesis
