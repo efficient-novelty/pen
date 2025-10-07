@@ -369,10 +369,23 @@ open PEN.Select.Discover  -- for `hostOf`
     , PEN.Novelty.Scope.FrontierKey.termExact h "alias_Sigma_family"
     ] ++ nbs
 
+@[inline] def isPiSigmaAliasTFName (s : String) : Bool :=
+  s == "alias_arrow" || s == "alias_forall" || s == "alias_eval" ||
+  s == "alias_prod"  || s == "alias_exists"
+
 @[inline] def isPiSigmaAliasKey : PEN.Novelty.Scope.FrontierKey → Bool
   | .termExact "Pi" "alias_Pi_family"       => true
   | .termExact "Sigma" "alias_Sigma_family" => true
-  | _                                         => false
+  | .termExact host nm =>
+      isPiSigmaAliasTFName host && nm == s!"schema_{host}"
+  | .elim host => isPiSigmaAliasTFName host
+  | .compElim nm =>
+      if nm.startsWith "rec_alias_" then
+        let candidate := nm.drop 4
+        isPiSigmaAliasTFName candidate
+      else
+        false
+  | _ => false
 
 
 @[inline] def foundationOKForTargets
@@ -691,7 +704,9 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
     if isPureClassifierTFSet X.targets || isClassifierTFSetWithInfra X.targets then
       let hasPiSigma := containsTF "Pi" X.targets && containsTF "Sigma" X.targets
       if hasPiSigma && H ≥ 3 then
-        PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
+        let base := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
+        let base' := if H ≤ 3 then keepOnePiSigmaAlias base "alias_arrow" else base
+        base'
       else
         cfg.actions
     else if isClassifierTFSolo X.targets then
@@ -1027,7 +1042,9 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
               if isPureClassifierTFSet targetsSealed || isClassifierTFSetWithInfra targetsSealed then
                 let hasPiSigma := containsTF "Pi" targetsSealed && containsTF "Sigma" targetsSealed
                 if hasPiSigma && H ≥ 3 then
-                  PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
+                  let base := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
+                  let base' := if H ≤ 3 then keepOnePiSigmaAlias base "alias_arrow" else base
+                  base'
                 else
                   actionsWithMaps
               else
