@@ -352,15 +352,20 @@ This matches Defs 6–7 (post distance = BFS layer index).
 -/
 def postDistances (post : Context) (actions : List AtomicDecl) (H : Nat)
     : List (AtomicDecl × Nat) :=
-  let rec go (depth : Nat) (cur : Context) (acc : List (AtomicDecl × Nat)) :=
-    if depth > H then acc else
+  let rec go (fuel : Nat) (depth : Nat) (cur : Context)
+      (acc : List (AtomicDecl × Nat)) : List (AtomicDecl × Nat) :=
+    match fuel with
+    | 0 => acc
+    | Nat.succ fuel' =>
       let addables :=
         actions.filter (fun a => isValidInContext a cur && not (holdsDecl cur a))
-      if addables.isEmpty then acc else
-        let acc'  := acc ++ addables.map (fun a => (a, depth))
-        let next  := addables.foldl (fun Γ a => (step Γ a).getD Γ) cur
-        go (depth + 1) next acc'
-  go 1 post []
+      if addables.isEmpty then
+        acc
+      else
+        let acc' := acc ++ addables.map (fun a => (a, depth))
+        let next := addables.foldl (fun Γ a => (step Γ a).getD Γ) cur
+        go fuel' (depth + 1) next acc'
+  go H 1 post []
 
 @[inline] def kappaTrunc (actions : List AtomicDecl) (Γ : Context) (Y : AtomicDecl) (budget : Nat) : Nat :=
   match kappaMinForDecl? Γ Y actions budget with
