@@ -38,6 +38,28 @@ def enumPiSigmaAliasesFor (hostType : String) : FrontierEnumerator :=
     else
       []
 
+/-- Propose Π/Σ alias families on every non-classifier host present in the context. -/
+def enumPiSigmaAliasesOnNonClassifiers : FrontierEnumerator :=
+  fun Γ =>
+    let hasPi    := Γ.hasTypeFormer "Pi"
+    let hasSigma := Γ.hasTypeFormer "Sigma"
+    if not (hasPi || hasSigma) then [] else
+      let hosts := Γ.typeFormers.filter (fun T => not (isClassifierTFName T))
+      let perHost : String → List AtomicDecl := fun T =>
+        let piAliases : List AtomicDecl :=
+          if hasPi then
+            [ AtomicDecl.declareTerm "alias_arrow"  T
+            , AtomicDecl.declareTerm "alias_forall" T
+            , AtomicDecl.declareTerm "alias_eval"   T ]
+          else []
+        let sigmaAliases : List AtomicDecl :=
+          if hasSigma then
+            [ AtomicDecl.declareTerm "alias_prod"   T
+            , AtomicDecl.declareTerm "alias_exists" T ]
+          else []
+        piAliases ++ sigmaAliases
+      dedupBEq (hosts.bind perHost)
+
 
 
 /-- Augment an actions list with Π/Σ alias declareTerm steps for a given host. -/

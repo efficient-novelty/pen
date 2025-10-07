@@ -265,7 +265,7 @@ def dedupFrontierByKey (es : List FrontierEntry) : List FrontierEntry :=
 /-- Configuration for frontier enumeration. -/
 structure ScopeConfig where
   actions      : List AtomicDecl
-  enumerators  : List FrontierEnumerator := []  -- kept for API stability, unused now
+  enumerators  : List FrontierEnumerator := []  -- additional context-sensitive proposals
   horizon      : Nat
   preMaxDepth? : Option Nat := none             -- same-budget κ_pre truncation
   postMaxDepth?: Option Nat := none             -- defaults to horizon if unspecified
@@ -374,8 +374,11 @@ def postDistances (post : Context) (actions : List AtomicDecl) (H : Nat)
 
 /-- Gather, exclude, and deduplicate raw targets from the post context. -/
 def gatherTargets (post : Context) (cfg : ScopeConfig) : List Target :=
-  let all := cfg.actions
-  filterNotIn (dedupBEq all) (dedupBEq cfg.exclude)
+  let fromActions      := cfg.actions
+  let fromEnumerators  := cfg.enumerators.bind (· post)
+  let combined         := dedupBEq (fromActions ++ fromEnumerators)
+  let excluded         := dedupBEq cfg.exclude
+  filterNotIn combined excluded
 
 /--
   Build the horizon-bounded frontier:
@@ -402,11 +405,9 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
             acc ++ [{ target := t, kPost := kPost, kPreEff := kPreEff }]
         | none => acc)
       []
-  let rawFiltered :=
-    if cfg.exclude.isEmpty then raw
-    else raw.filter (fun e => dependsOnTargets e.target cfg.exclude)
-
-  let raw' := rawFiltered.filter (fun e => not (hasKey cfg.excludeKeys e.target))
+  -- Frontier membership is determined solely by post-distance and pre-cost rules;
+  -- no additional syntactic dependency gate.
+  let raw' := raw.filter (fun e => not (hasKey cfg.excludeKeys e.target))
   -- schema collapse (your Axiom‑3 keying)
   dedupFrontierByKey raw'
 
@@ -510,8 +511,10 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
   let postBound := postMaxDepth cfg
   let preBound  := preMaxDepth cfg
 
-  -- Stage 1: enumerate targets (actions only, but keep those excluded by name for diagnostics)
-  let allEnum : List Target := dedupBEq cfg.actions
+  -- Stage 1: enumerate targets (actions + enumerators, with name-based excludes recorded)
+  let fromActions := cfg.actions
+  let fromEnums   := cfg.enumerators.bind (· post)
+  let allEnum : List Target := dedupBEq (fromActions ++ fromEnums)
   let enumerated : List (Target × FrontierKey) :=
     allEnum.map (fun t => (t, keyOfTarget t))
   let excludedByName : List (Target × FrontierKey) :=
@@ -523,15 +526,11 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
   let kPostOf (t : Target) : Option Nat :=
     (dists.find? (fun p => p.fst == t)).map (·.snd)
 
-  let postKappaOK0 : List (Target × FrontierKey × Nat) :=
+  let postKappaOK : List (Target × FrontierKey × Nat) :=
     ts.foldl (fun acc t =>
       match kPostOf t with
       | some k => acc ++ [(t, keyOfTarget t, k)]
       | none   => acc) []
-
-  let postKappaOK : List (Target × FrontierKey × Nat) :=
-    if cfg.exclude.isEmpty then postKappaOK0
-    else postKappaOK0.filter (fun (t, _, _) => dependsOnTargets t cfg.exclude)
 
   let postKappaFail : List (Target × FrontierKey) :=
     ts.filter (fun t => (kPostOf t).isNone)

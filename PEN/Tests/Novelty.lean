@@ -23,6 +23,7 @@
 import Init
 import PEN.CAD.Atoms
 import PEN.Novelty.Novelty
+import PEN.Novelty.Enumerators
 import PEN.Select.Engine
 import PEN.Grammar.HIT
 
@@ -106,6 +107,7 @@ def actionsPiSigma : List AtomicDecl :=
     let H  := 4
     let sc : PEN.Novelty.Scope.ScopeConfig :=
       { actions := actionsPiSigma
+      , enumerators := [PEN.Novelty.Enumerators.enumPiSigmaAliasesOnNonClassifiers]
       , horizon := H
       , preMaxDepth?  := some H
       , postMaxDepth? := some H
@@ -126,6 +128,7 @@ def actionsPiSigma : List AtomicDecl :=
     let H  := 4
     let sc : PEN.Novelty.Scope.ScopeConfig :=
       { actions := actionsPiSigma
+      , enumerators := [PEN.Novelty.Enumerators.enumPiSigmaAliasesOnNonClassifiers]
       , horizon := H
       , preMaxDepth?  := some H
       , postMaxDepth? := some H
@@ -147,6 +150,7 @@ def actionsPiSigma : List AtomicDecl :=
     let H  := 5
     let sc : PEN.Novelty.Scope.ScopeConfig :=
       { actions := actionsPiSigma
+      , enumerators := [PEN.Novelty.Enumerators.enumPiSigmaAliasesOnNonClassifiers]
       , horizon := H
       , preMaxDepth?  := some H
       , postMaxDepth? := some H

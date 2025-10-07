@@ -5,14 +5,14 @@
 
   For a package (targets X), we:
     * find κ(X | B) and post context by IDDFS over actions
-    * compute the frontier automatically from actions (ignoring enumerators):
-        frontier := { Y ∈ actions \ exclude | κ(Y | post) ≤ H }
+    * compute the frontier automatically from actions ∪ enumerators:
+        frontier := { Y proposed | κ(Y | post) ≤ H }
       and novelty ν := Σ_Y max(0, κ_H(Y | B) - κ(Y | post)),
       where κ_H truncates pre to the same budget H (or preMaxDepth? if provided).
 
   This file exposes:
     - NoveltyReport (unchanged)
-    - noveltyForPackage? : the engine calls this; enumerators are ignored
+    - noveltyForPackage? : the engine calls this; enumerators are honored
 -/
 
 import Init
@@ -238,9 +238,11 @@ def reduceByKeyMaxGain (_post : Context) (es : List FrontierEntry) : List Fronti
 def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry :=
   let preBudget  := preMaxDepth sc
   let postBudget := postMaxDepth sc
-  let acts       := PEN.Novelty.Scope.dedupBEq sc.actions
-  let cands      := acts.filter (fun y =>
-    (not (PEN.Novelty.Scope.memBEq y sc.exclude))
+  let enumAdds   := sc.enumerators.bind (· post)
+  let allTargets := PEN.Novelty.Scope.dedupBEq (sc.actions ++ enumAdds)
+  let excluded   := PEN.Novelty.Scope.dedupBEq sc.exclude
+  let cands      := allTargets.filter (fun y =>
+    (not (PEN.Novelty.Scope.memBEq y excluded))
     && (not (hasKey sc.excludeKeys y)))
   let dists      := PEN.Novelty.Scope.postDistances post sc.actions postBudget
   let kPostOf (t : AtomicDecl) : Option Nat :=
@@ -254,10 +256,7 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
             acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }]
         | none => acc)
       []
-  let rawFiltered :=
-    if sc.exclude.isEmpty then raw
-    else raw.filter (fun e => dependsOnTargets e.target sc.exclude)
-  reduceByKeyMaxGain post rawFiltered
+  reduceByKeyMaxGain post raw
 
 
 
