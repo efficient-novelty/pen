@@ -58,7 +58,7 @@ def enumPiSigmaAliasesOnNonClassifiers : FrontierEnumerator :=
             , AtomicDecl.declareTerm "alias_exists" T ]
           else []
         piAliases ++ sigmaAliases
-      dedupBEq (hosts.bind perHost)
+      dedupBEq (List.join (hosts.map perHost))
 
 
 

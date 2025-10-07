@@ -238,7 +238,8 @@ def reduceByKeyMaxGain (_post : Context) (es : List FrontierEntry) : List Fronti
 def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry :=
   let preBudget  := preMaxDepth sc
   let postBudget := postMaxDepth sc
-  let enumAdds   := sc.enumerators.bind (· post)
+  let enumAdds   : List AtomicDecl :=
+    List.join (sc.enumerators.map (fun en => en post))
   let allTargets := PEN.Novelty.Scope.dedupBEq (sc.actions ++ enumAdds)
   let excluded   := PEN.Novelty.Scope.dedupBEq sc.exclude
   let cands      := allTargets.filter (fun y =>
