@@ -496,6 +496,23 @@ deriving Repr
     | .declareEliminator _ T => T == h
     | _ => false)
 
+/-- Add one canonical comp rule e∘c for each host in `hosts`
+    when both the elim and (a) constructor are present in `actions`. -/
+@[inline] def addEndoCompsForHosts
+    (actions : List AtomicDecl) (hosts : List String) : List AtomicDecl :=
+  let comps :=
+    hosts.foldl (fun acc h =>
+      let el? := pickElimForHost? actions h
+      let c?  := (pickFirstCtors actions h 1).head?
+      match el?, c? with
+      | some (.declareEliminator e _), some (.declareConstructor c _) =>
+          if actions.any (fun a => match a with
+                                   | .declareCompRule e' c' => e' = e && c' = c
+                                   | _ => false) then acc
+          else acc ++ [AtomicDecl.declareCompRule e c]
+      | _, _ => acc) []
+  PEN.Novelty.Scope.dedupBEq (actions ++ comps)
+
 /-- If `ts` names a non-classifier host and actions contain a plausible HIT
     (≥2 ctors + an eliminator), augment `ts` to a *full/ sealed* HIT core:
     TF(h) + two ctors + one eliminator (dedup). -/
@@ -751,6 +768,12 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
   let actions''' : List AtomicDecl :=
     PEN.Novelty.Scope.dedupBEq (actions'' ++ nbTerms ++ jumpExtras)
 
+  let hostsForEndo : List String :=
+    if isPiSigmaDual targetsCore then ["Pi", "Sigma"]
+    else match host? with | some h => [h] | none => []
+  let actions'''' : List AtomicDecl :=
+    addEndoCompsForHosts actions''' hostsForEndo
+
   let xIsTFSolo := PEN.Novelty.Scope.allTFOnly targetsCore
   let hostSuppress :=
     match host? with
@@ -787,22 +810,22 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
   let exKeys := PEN.Novelty.Scope.dedupBEq (baseKeys ++ endo')
 
   let sc : ScopeConfig :=
-    { actions       := actions'''
+    { actions       := actions''''
       horizon       := H
       preMaxDepth?  := some H
       postMaxDepth? := some H
       exclude       := exTargets
       excludeKeys   := exKeys }
-  let targets1 := sealHITTargets actions''' X.targets
+  let targets1 := sealHITTargets actions'''' X.targets
   -- Keep Π/Σ pair pure at small radius so κ fits within H=3 (τ≈5).
   let targetsSealed :=
     if isPiSigmaDual targets1 && H ≤ 3 then
       targets1
     else
-      sealPiSigmaTargets actions''' targets1
+      sealPiSigmaTargets actions'''' targets1
 
   let Lstar := contextLevel levelEnv B
-  match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) actions''' H with
+  match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) actions'''' H with
   | none => none
   | some (_kX, certX) =>
       let okFound := foundationOKForTargets levelEnv Lstar certX.deriv targetsSealed
@@ -1054,8 +1077,14 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
         let actionsAug : List AtomicDecl :=
           PEN.Novelty.Scope.dedupBEq (actionsWithAliases ++ nbTerms ++ jumpExtras)
 
+        let hostsForEndo : List String :=
+          if isPiSigmaDual targetsSealed then ["Pi", "Sigma"]
+          else match commonHost? targetsSealed with | some h => [h] | none => []
+        let actionsAug' : List AtomicDecl :=
+          addEndoCompsForHosts actionsAug hostsForEndo
+
         -- *** Use the SAME alphabet for κ-admissibility ***
-        match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) actionsAug H with
+        match PEN.CAD.kappaMin? B (goalAllTargets targetsSealed) actionsAug' H with
         | none => none
         | some (_kXcert, certX) =>
           let foundationOK :=
@@ -1100,7 +1129,7 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
 
             let I := PEN.Novelty.Novelty.interfaceBasis st.layers
             let sc : ScopeConfig :=
-              { actions       := actionsAug
+              { actions       := actionsAug'
                 horizon       := H
                 preMaxDepth?  := some H
                 postMaxDepth? := some H
