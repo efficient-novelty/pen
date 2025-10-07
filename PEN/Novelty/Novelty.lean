@@ -193,19 +193,17 @@ def frontierAll (actions : List AtomicDecl)
   let postBudget := postMax?.getD H   -- NEW
   let acts   := PEN.Novelty.Scope.dedupBEq actions
   let cands  := acts.filter (fun y => not (exclude.any (· == y)))
-  -- Collect raw entries first …
+  let dists  := PEN.Novelty.Scope.postDistances post actions postBudget
+  let kPostOf (t : AtomicDecl) : Option Nat :=
+    (dists.find? (fun p => p.fst == t)).map (·.snd)
   let raw : List FrontierEntry :=
     cands.foldl
       (fun acc Y =>
-        -- κ_post(Y) within the *post* budget (immediate frontier if postBudget = 1)
-        match iddfsMin actions (PEN.CAD.goalOfDecl Y) postBudget post with
-        | none => acc
-        | some (kPost, _) =>
-          if kPost = 0 then
-            acc
-          else
+        match kPostOf Y with
+        | some kPost =>
             let kPreEff := kappaTrunc actions B Y preBudget
-            acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
+            acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }]
+        | none => acc)
       []
   -- … then collapse schema-equivalent targets (all type formers → 1 class).
   dedupFrontierByKey raw
@@ -244,17 +242,17 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
   let cands      := acts.filter (fun y =>
     (not (PEN.Novelty.Scope.memBEq y sc.exclude))
     && (not (hasKey sc.excludeKeys y)))
+  let dists      := PEN.Novelty.Scope.postDistances post sc.actions postBudget
+  let kPostOf (t : AtomicDecl) : Option Nat :=
+    (dists.find? (fun p => p.fst == t)).map (·.snd)
   let raw : List FrontierEntry :=
     cands.foldl
       (fun acc Y =>
-        match PEN.CAD.kappaMinForDecl? post Y sc.actions postBudget with
-        | none => acc
-        | some (kPost, _) =>
-          -- Skip anything already true in post: not "future frontier".
-          if kPost = 0 then acc else
-            -- Honest pre-cost: truncated κ from B (fail ⇒ preBudget+1 inside kappaTrunc).
+        match kPostOf Y with
+        | some kPost =>
             let kPreEff := kappaTrunc sc.actions B Y preBudget
-            acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }])
+            acc ++ [{ target := Y, kPreEff := kPreEff, kPost := kPost }]
+        | none => acc)
       []
   let rawFiltered :=
     if sc.exclude.isEmpty then raw
