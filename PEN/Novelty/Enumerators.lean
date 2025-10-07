@@ -74,6 +74,24 @@ def aliasTermDeclsPiSigma : List AtomicDecl :=
   , declareTerm "alias_exists" "Sigma"  -- ∃
   ]
 
+@[inline] def isPiSigmaAliasTF : AtomicDecl → Bool
+  | .declareTypeFormer "alias_arrow"  => true
+  | .declareTypeFormer "alias_forall" => true
+  | .declareTypeFormer "alias_eval"   => true
+  | .declareTypeFormer "alias_prod"   => true
+  | .declareTypeFormer "alias_exists" => true
+  | _ => false
+
+@[inline] def keepOnePiSigmaAlias (xs : List AtomicDecl) (keep : String := "alias_arrow")
+    : List AtomicDecl :=
+  xs.filter (fun a =>
+    if isPiSigmaAliasTF a then
+      match a with
+      | .declareTypeFormer n => n == keep
+      | _ => true
+    else
+      true)
+
 /-- Emit the 5 Π/Σ alias terms when both Π and Σ are present. -/
 def enumPiSigmaAliasesGlobal : FrontierEnumerator :=
   fun Γ =>
