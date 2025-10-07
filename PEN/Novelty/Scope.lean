@@ -332,6 +332,36 @@ def enumMissingCompRules : FrontierEnumerator :=
 
 /-! ## Frontier construction -/
 
+@[inline] def holdsDecl (Γ : Context) : AtomicDecl → Bool
+  | .declareUniverse ℓ       => Γ.hasUniverse ℓ
+  | .declareInfrastructure n => Γ.hasInfrastructure n
+  | .declareTypeFormer n     => Γ.hasTypeFormer n
+  | .declareConstructor c _  => Γ.hasConstructor c
+  | .declareEliminator  e _  => Γ.hasEliminator e
+  | .declareCompRule e c     => Γ.hasCompRule e c
+  | .declareTerm t _         => Γ.hasTerm t
+
+/--
+Layered post-closure up to depth `H` (BFS *without* in-layer cascading).
+
+Starting from `post`, at layer 1 we add **all** actions valid in `post`;
+at layer 2 we add all actions valid in the context from layer 1; etc.
+We record `(target, distance)` for everything that becomes valid at that layer.
+
+This matches Defs 6–7 (post distance = BFS layer index).
+-/
+def postDistances (post : Context) (actions : List AtomicDecl) (H : Nat)
+    : List (AtomicDecl × Nat) :=
+  let rec go (depth : Nat) (cur : Context) (acc : List (AtomicDecl × Nat)) :=
+    if depth > H then acc else
+      let addables :=
+        actions.filter (fun a => isValidInContext a cur && not (holdsDecl cur a))
+      if addables.isEmpty then acc else
+        let acc'  := acc ++ addables.map (fun a => (a, depth))
+        let next  := addables.foldl (fun Γ a => (step Γ a).getD Γ) cur
+        go (depth + 1) next acc'
+  go 1 post []
+
 @[inline] def kappaTrunc (actions : List AtomicDecl) (Γ : Context) (Y : AtomicDecl) (budget : Nat) : Nat :=
   match kappaMinForDecl? Γ Y actions budget with
   | some (k, _) => k
@@ -344,25 +374,28 @@ def gatherTargets (post : Context) (cfg : ScopeConfig) : List Target :=
 
 /--
   Build the horizon-bounded frontier:
-   * keep only targets with κ(Y|post) ≤ H,
+   * keep only targets whose BFS post distance ≤ H,
    * compute truncated pre-cost κ̃(Y|pre) where failures count as H+1.
 -/
 def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
-  let _H := cfg.horizon
+  let _H        := cfg.horizon
   let postBound := postMaxDepth cfg
-  let preBound := preMaxDepth cfg
-  let ts := gatherTargets post cfg
+  let preBound  := preMaxDepth cfg
+  let ts        := gatherTargets post cfg
 
-  let goTarget (t : Target) : Option FrontierEntry :=
-    match kappaMinForDecl? post t cfg.actions postBound with
-    | some (kPost, _) =>
-        let kPreEff := kappaTrunc cfg.actions pre t preBound
-        some { target := t, kPost := kPost, kPreEff := kPreEff }
-    | none => none
+  -- Stage 2: BFS post distances (no in-layer cascading)
+  let dists : List (Target × Nat) := postDistances post cfg.actions postBound
+  let kPostOf (t : Target) : Option Nat :=
+    (dists.find? (fun p => p.fst == t)).map (·.snd)
 
-  let raw :=
+  let raw : List FrontierEntry :=
     ts.foldl
-      (fun acc t => match goTarget t with | some e => acc ++ [e] | none => acc)
+      (fun acc t =>
+        match kPostOf t with
+        | some kPost =>
+            let kPreEff := kappaTrunc cfg.actions pre t preBound
+            acc ++ [{ target := t, kPost := kPost, kPreEff := kPreEff }]
+        | none => acc)
       []
   let rawFiltered :=
     if cfg.exclude.isEmpty then raw
@@ -407,7 +440,7 @@ def atomLabel : PEN.CAD.AtomicDecl → String
 /-
   ========= Diagnostics for novelty frontier =========
   A structured audit of the frontier construction pipeline:
-    enumerate → exclude-by-name → κ(post) gate → exclude-by-key → dedup-by-key
+    enumerate → exclude-by-name → BFS post-distance gate → exclude-by-key → dedup-by-key
 -/
 
 namespace Debug
@@ -428,9 +461,9 @@ structure FrontierDiag where
   preBound       : Nat
   enumerated     : List (Target × FrontierKey)                 -- all from enumerators (dedup by decl)
   excludedByName : List (Target × FrontierKey)                 -- removed by cfg.exclude
-  postKappaOK    : List (Target × FrontierKey × Nat)           -- κ_post found (k ≤ postBound)
-  postKappaFail  : List (Target × FrontierKey)                 -- κ_post failed (search miss / > bound)
-  rawEntries     : List FrontierEntry                          -- after κ_post, before excludes-by-key
+  postKappaOK    : List (Target × FrontierKey × Nat)           -- post distance found (layer ≤ postBound)
+  postKappaFail  : List (Target × FrontierKey)                 -- not reachable within postBound layers
+  rawEntries     : List FrontierEntry                          -- after post-distance gate, before excludes-by-key
   excludedByKey  : List (Target × FrontierKey)                 -- removed by cfg.excludeKeys
   dedupDrops     : List DedupDrop                              -- removed by schema-key dedup
   finalEntries   : List FrontierEntry                          -- survivors entering novelty sum
@@ -481,15 +514,13 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
            |>.map (fun t => (t, keyOfTarget t))
   let ts : List Target := filterNotIn allEnum (dedupBEq cfg.exclude)
 
-  -- Stage 2: κ(post) gate (identical to `frontier` except we record failures)
-  let goPost (t : Target) : Option Nat :=
-    match kappaMinForDecl? post t cfg.actions postBound with
-    | some (kPost, _) => some kPost
-    | none            => none
+  let dists : List (Target × Nat) := postDistances post cfg.actions postBound
+  let kPostOf (t : Target) : Option Nat :=
+    (dists.find? (fun p => p.fst == t)).map (·.snd)
 
   let postKappaOK0 : List (Target × FrontierKey × Nat) :=
     ts.foldl (fun acc t =>
-      match goPost t with
+      match kPostOf t with
       | some k => acc ++ [(t, keyOfTarget t, k)]
       | none   => acc) []
 
@@ -498,7 +529,7 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
     else postKappaOK0.filter (fun (t, _, _) => dependsOnTargets t cfg.exclude)
 
   let postKappaFail : List (Target × FrontierKey) :=
-    ts.filter (fun t => match goPost t with | some _ => false | none => true)
+    ts.filter (fun t => (kPostOf t).isNone)
       |>.map (fun t => (t, keyOfTarget t))
 
   -- Stage 3: compute pre effort for successes; build raw entries
@@ -555,8 +586,8 @@ def render (d : FrontierDiag) : String :=
 
   header
   ++ sec "• Excluded by name:" (String.join (d.excludedByName.map showPair))
-  ++ sec "• κ(post) FAIL:"     (String.join (d.postKappaFail.map showPair))
-  ++ sec "• After κ(post):"    (String.join (d.rawEntries.map showEntry))
+  ++ sec "• post distance FAIL:" (String.join (d.postKappaFail.map showPair))
+  ++ sec "• After post distance:" (String.join (d.rawEntries.map showEntry))
   ++ sec "• Excluded by key:"  (String.join (d.excludedByKey.map showPair))
   ++ sec "• Dedup drops:"      (String.join (d.dedupDrops.map showDrop))
   ++ sec "• Survivors (Δ per key):"
