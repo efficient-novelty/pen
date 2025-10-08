@@ -432,7 +432,12 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
   let _H        := cfg.horizon
   let postBound := postMaxDepth cfg
   let preBound  := preMaxDepth cfg
-  let ts        := gatherTargets post cfg
+  let ts0       := gatherTargets post cfg
+  let ts        :=
+    if cfg.exclude.isEmpty then
+      ts0
+    else
+      ts0.filter (fun t => dependsOnTargets t cfg.exclude)
 
   -- Stage 2: BFS post distances (no in-layer cascading)
   let dists : List (Target × Nat) := postDistances post cfg.actions postBound
@@ -448,8 +453,7 @@ def frontier (pre post : Context) (cfg : ScopeConfig) : List FrontierEntry :=
             acc ++ [{ target := t, kPost := kPost, kPreEff := kPreEff }]
         | none => acc)
       []
-  -- Frontier membership is determined solely by post-distance and pre-cost rules;
-  -- no additional syntactic dependency gate.
+    -- Frontier membership now also enforces the dependency gate from `cfg.exclude`.
   let raw' := raw.filter (fun e => not (hasKey cfg.excludeKeys e.target))
   -- schema collapse (your Axiom‑3 keying)
   dedupFrontierByKey raw'
@@ -510,6 +514,7 @@ structure FrontierDiag where
   preBound       : Nat
   enumerated     : List (Target × FrontierKey)                 -- all from enumerators (dedup by decl)
   excludedByName : List (Target × FrontierKey)                 -- removed by cfg.exclude
+  excludedByDep  : List (Target × FrontierKey)                 -- removed by dependency gate
   postKappaOK    : List (Target × FrontierKey × Nat)           -- post distance found (layer ≤ postBound)
   postKappaFail  : List (Target × FrontierKey)                 -- not reachable within postBound layers
   rawEntries     : List FrontierEntry                          -- after post-distance gate, before excludes-by-key
@@ -564,7 +569,13 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
   let excludedByName : List (Target × FrontierKey) :=
     allEnum.filter (fun t => memBEq t cfg.exclude)
            |>.map (fun t => (t, keyOfTarget t))
-  let ts : List Target := filterNotIn allEnum (dedupBEq cfg.exclude)
+  let ts0 : List Target := filterNotIn allEnum (dedupBEq cfg.exclude)
+  let depFiltered : List Target :=
+    if cfg.exclude.isEmpty then []
+    else ts0.filter (fun t => not (dependsOnTargets t cfg.exclude))
+  let ts : List Target :=
+    if cfg.exclude.isEmpty then ts0
+    else ts0.filter (fun t => dependsOnTargets t cfg.exclude)
 
   let dists : List (Target × Nat) := postDistances post cfg.actions postBound
   let kPostOf (t : Target) : Option Nat :=
@@ -606,7 +617,9 @@ def frontierWithDiag (pre post : Context) (cfg : ScopeConfig)
 
   let diag : FrontierDiag :=
     { H := cfg.horizon, postBound, preBound
-      , enumerated, excludedByName, postKappaOK, postKappaFail
+      , enumerated, excludedByName
+      , excludedByDep := depFiltered.map (fun t => (t, keyOfTarget t))
+      , postKappaOK, postKappaFail
       , rawEntries, excludedByKey, dedupDrops, finalEntries, contributions, nuSum }
 
   (finalEntries, diag)
@@ -616,7 +629,7 @@ def render (d : FrontierDiag) : String :=
   let header :=
     s!"[frontier] H={d.H} preBound={d.preBound} postBound={d.postBound}\n"
     ++ s!"  enumerated={d.enumerated.length}  excludedByName={d.excludedByName.length}\n"
-    ++ s!"  postOK={d.postKappaOK.length}  postFail={d.postKappaFail.length}\n"
+    ++ s!"  depFiltered={d.excludedByDep.length}  postOK={d.postKappaOK.length}  postFail={d.postKappaFail.length}\n"
     ++ s!"  afterKeyExclude={d.rawEntries.length - d.excludedByKey.length}\n"
     ++ s!"  dedupDrops={d.dedupDrops.length}  survivors={d.finalEntries.length}\n"
     ++ s!"  ν={d.nuSum}\n"
@@ -634,6 +647,7 @@ def render (d : FrontierDiag) : String :=
 
   header
   ++ sec "• Excluded by name:" (String.join (d.excludedByName.map showPair))
+  ++ sec "• Excluded by dependency:" (String.join (d.excludedByDep.map showPair))
   ++ sec "• post distance FAIL:" (String.join (d.postKappaFail.map showPair))
   ++ sec "• After post distance:" (String.join (d.rawEntries.map showEntry))
   ++ sec "• Excluded by key:"  (String.join (d.excludedByKey.map showPair))
