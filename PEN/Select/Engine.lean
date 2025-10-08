@@ -815,7 +815,13 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
     else
       endoKeysForTFSet targetsCore
 
-  let exKeys := PEN.Novelty.Scope.dedupBEq (baseKeys ++ endo')
+  let uniMask :=
+    if PEN.Novelty.Scope.allUniversesOnlyTargets X.targets then
+      PEN.Novelty.Scope.endoKeysForUniverseOnly actions''''
+    else
+      []
+
+  let exKeys := PEN.Novelty.Scope.dedupBEq (baseKeys ++ endo' ++ uniMask)
 
   let sc : ScopeConfig :=
     { actions       := actions''''
@@ -1133,7 +1139,13 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
               else
                 endoKeysForTFSet targetsSealed
 
-            let exKeys := PEN.Novelty.Scope.dedupBEq (baseKeys ++ endo')
+            let uniMask :=
+              if PEN.Novelty.Scope.allUniversesOnlyTargets targetsSealed then
+                PEN.Novelty.Scope.endoKeysForUniverseOnly actionsAug'
+              else
+                []
+
+            let exKeys := PEN.Novelty.Scope.dedupBEq (baseKeys ++ endo' ++ uniMask)
 
             let I := PEN.Novelty.Novelty.interfaceBasis st.layers
             let sc : ScopeConfig :=

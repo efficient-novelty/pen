@@ -292,8 +292,9 @@ def noveltyForPackage?
         kDeriv + J.length
       else
         kDeriv
-    let tfBonus := 0
-    let ν := nuCore
+    let uniBonus := if PEN.Novelty.Scope.allUniversesOnlyTargets targets then 1 else 0
+    let tfBonus := uniBonus
+    let ν := nuCore + tfBonus
     let ρ := if kX = 0 then 0.0 else (Float.ofNat ν) / (Float.ofNat kX)
     some { post := post
          , kX := kX
