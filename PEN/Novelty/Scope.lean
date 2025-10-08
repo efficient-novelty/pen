@@ -26,6 +26,17 @@ namespace PEN.Novelty.Scope
 
 open PEN.CAD
 
+/-! ## Small list helpers (BEq-based dedup/filter) -/
+
+@[inline] def memBEq [BEq α] (x : α) (xs : List α) : Bool :=
+  xs.any (· == x)
+
+@[inline] def dedupBEq [BEq α] (xs : List α) : List α :=
+  xs.foldl (fun acc x => if memBEq x acc then acc else acc ++ [x]) ([])
+
+@[inline] def filterNotIn [BEq α] (xs bad : List α) : List α :=
+  xs.filter (fun x => not (memBEq x bad))
+
 /-- Targets considered for novelty are `AtomicDecl`-goals (presence in a context). -/
 abbrev Target := AtomicDecl
 
@@ -319,17 +330,6 @@ instance : Repr ScopeConfig where
 
 @[inline] def postMaxDepth (cfg : ScopeConfig) : Nat :=
   cfg.postMaxDepth?.getD cfg.horizon
-
-/-! ## Small list helpers (BEq-based dedup/filter) -/
-
-@[inline] def memBEq [BEq α] (x : α) (xs : List α) : Bool :=
-  xs.any (· == x)
-
-@[inline] def dedupBEq [BEq α] (xs : List α) : List α :=
-  xs.foldl (fun acc x => if memBEq x acc then acc else acc ++ [x]) ([])
-
-@[inline] def filterNotIn [BEq α] (xs bad : List α) : List α :=
-  xs.filter (fun x => not (memBEq x bad))
 
 /-! ## Built-in generic enumerators (bind-free) -/
 
