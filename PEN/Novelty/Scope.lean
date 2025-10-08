@@ -259,7 +259,8 @@ def endoKeysForUniverseOnly (actions : List AtomicDecl) : List FrontierKey :=
     let tns := tfNamesIn ts
     tns.foldl (fun acc h =>
       let base : List FrontierKey :=
-        [ FrontierKey.elim h
+        [ FrontierKey.ctor h
+        , FrontierKey.elim h
         , FrontierKey.compElim s!"rec_{h}"
         , FrontierKey.termExact h s!"schema_{h}" ]
       acc ++ base) []
