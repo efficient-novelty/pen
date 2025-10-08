@@ -229,8 +229,8 @@ def allHostsInActions (actions : List AtomicDecl) : List String :=
 
 /--
 Treat everything unlocked by universes alone as endogenous:
-suppress TF, ctor/elim, comp(rec_h), schema_h, and the Π/Σ alias families
-on all hosts present in the actions menu.
+suppress TF, ctor/elim, comp(rec_h), schema_h, the Π/Σ alias families,
+and any infrastructure exposed in the actions menu.
 -/
 def endoKeysForUniverseOnly (actions : List AtomicDecl) : List FrontierKey :=
   let hosts := allHostsInActions actions
@@ -242,7 +242,13 @@ def endoKeysForUniverseOnly (actions : List AtomicDecl) : List FrontierKey :=
   let schemaK := hosts.map (fun h => FrontierKey.termExact h s!"schema_{h}")
   let piFamK := hosts.map (fun h => FrontierKey.termExact h "alias_Pi_family")
   let sigmaFamK := hosts.map (fun h => FrontierKey.termExact h "alias_Sigma_family")
-  dedupBEq (tfKey ++ ctorK ++ elimK ++ compK ++ termK ++ schemaK ++ piFamK ++ sigmaFamK)
+  let infraK :=
+    actions.foldl (fun acc a =>
+      match a with
+      | .declareInfrastructure nm => acc ++ [FrontierKey.exact (.declareInfrastructure nm)]
+      | _ => acc) []
+  dedupBEq
+    (tfKey ++ ctorK ++ elimK ++ compK ++ termK ++ schemaK ++ piFamK ++ sigmaFamK ++ infraK)
 
 /-- Endogenous attachments for any TF-only bundle (incl. classifiers):
     • ctor(host), elim(host), comp(rec_host), schema_host.
