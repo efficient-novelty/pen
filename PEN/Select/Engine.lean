@@ -452,18 +452,31 @@ deriving Repr
 
 /-- Build the ScopeConfig for a package at the current horizon. -/
 @[inline] def mkScope (pkg : Pkg) (H : Nat) (_hist : History) : ScopeConfig :=
+  let hasPiSigmaTF : Bool :=
+    pkg.targets.any (fun a =>
+      match a with
+      | .declareTypeFormer "Pi" => true
+      | .declareTypeFormer "Sigma" => true
+      | _ => false)
+  let actions :=
+    if hasPiSigmaTF then
+      PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms pkg.actions
+    else
+      pkg.actions
+  let tfTargets :=
+    pkg.targets.filter (fun a => match a with | .declareTypeFormer _ => true | _ => false)
   let baseKeys :=
     PEN.Novelty.Scope.dedupBEq
       (keysOfTargets pkg.targets
-       ++ endoKeysForTFSet pkg.targets)
+       ++ endoKeysForTFSet tfTargets)
   -- If this package installs only universes, treat everything unlocked by
   -- universes alone as endogenous by masking out the library keys.
   let uniMask :=
     if PEN.Novelty.Scope.allUniversesOnlyTargets pkg.targets then
-      PEN.Novelty.Scope.endoKeysForUniverseOnly pkg.actions
+      PEN.Novelty.Scope.endoKeysForUniverseOnly actions
     else
       []
-  { actions       := pkg.actions
+  { actions       := actions
     enumerators   := pkg.enumerators
     horizon       := H
     preMaxDepth?  := some H
