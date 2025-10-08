@@ -105,15 +105,19 @@ def actionsPiSigma : List AtomicDecl :=
       [ declareInfrastructure "INFRA.DepBinder"
       , declareTypeFormer "Pi" ]
     let H  := 4
+    let acts := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsPiSigma
+    let tfTargets := targetsPi.filter (fun a => match a with | declareTypeFormer _ => true | _ => false)
     let sc : PEN.Novelty.Scope.ScopeConfig :=
-      { actions := actionsPiSigma
-      , enumerators := [ PEN.Novelty.Enumerators.enumPiSigmaAliasesOnClassifiers
-                       , PEN.Novelty.Enumerators.enumPiSigmaAliasesOnNonClassifiers ]
+      { actions := acts
+      , enumerators := [ PEN.Novelty.Enumerators.enumPiSigmaAliases ]
       , horizon := H
       , preMaxDepth?  := some H
       , postMaxDepth? := some H
       , exclude       := targetsPi
-      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets targetsPi }
+      , excludeKeys   :=
+          PEN.Novelty.Scope.dedupBEq
+            (PEN.Novelty.Scope.keysOfTargets targetsPi
+             ++ PEN.Novelty.Scope.endoKeysForTFSet tfTargets) }
     let I := interfaceBasis []
     match noveltyForPackage? B targetsPi sc I with
     | none   => "NOVELTY_FAIL"
@@ -127,15 +131,19 @@ def actionsPiSigma : List AtomicDecl :=
       [ declareInfrastructure "INFRA.DepBinder"
       , declareTypeFormer "Sigma" ]
     let H  := 4
+    let acts := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsPiSigma
+    let tfTargets := targetsSigma.filter (fun a => match a with | declareTypeFormer _ => true | _ => false)
     let sc : PEN.Novelty.Scope.ScopeConfig :=
-      { actions := actionsPiSigma
-      , enumerators := [ PEN.Novelty.Enumerators.enumPiSigmaAliasesOnClassifiers
-                       , PEN.Novelty.Enumerators.enumPiSigmaAliasesOnNonClassifiers ]
+      { actions := acts
+      , enumerators := [ PEN.Novelty.Enumerators.enumPiSigmaAliases ]
       , horizon := H
       , preMaxDepth?  := some H
       , postMaxDepth? := some H
       , exclude       := targetsSigma
-      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets targetsSigma }
+      , excludeKeys   :=
+          PEN.Novelty.Scope.dedupBEq
+            (PEN.Novelty.Scope.keysOfTargets targetsSigma
+             ++ PEN.Novelty.Scope.endoKeysForTFSet tfTargets) }
     let I := interfaceBasis []
     match noveltyForPackage? B targetsSigma sc I with
     | none   => "NOVELTY_FAIL"
@@ -150,15 +158,19 @@ def actionsPiSigma : List AtomicDecl :=
       , declareTypeFormer "Pi"
       , declareTypeFormer "Sigma" ]
     let H  := 5
+    let acts := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsPiSigma
+    let tfTargets := targetsPair.filter (fun a => match a with | declareTypeFormer _ => true | _ => false)
     let sc : PEN.Novelty.Scope.ScopeConfig :=
-      { actions := actionsPiSigma
-      , enumerators := [ PEN.Novelty.Enumerators.enumPiSigmaAliasesOnClassifiers
-                       , PEN.Novelty.Enumerators.enumPiSigmaAliasesOnNonClassifiers ]
+      { actions := acts
+      , enumerators := [ PEN.Novelty.Enumerators.enumPiSigmaAliases ]
       , horizon := H
       , preMaxDepth?  := some H
       , postMaxDepth? := some H
       , exclude       := targetsPair
-      , excludeKeys   := PEN.Novelty.Scope.keysOfTargets targetsPair }
+      , excludeKeys   :=
+          PEN.Novelty.Scope.dedupBEq
+            (PEN.Novelty.Scope.keysOfTargets targetsPair
+             ++ PEN.Novelty.Scope.endoKeysForTFSet tfTargets) }
     let I := interfaceBasis []
     match noveltyForPackage? B targetsPair sc I with
     | none   => "NOVELTY_FAIL"

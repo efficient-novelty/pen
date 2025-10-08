@@ -177,8 +177,8 @@ Axiom 3 schema keying:
       if isClassifierTFName T && isSchemaNameFor nm T then
         FrontierKey.typeFormer   -- classifier schema is endogenous
       else if isClassifierTFName T && isPiSigmaAlias nm T then
-        if isPiAliasName nm then FrontierKey.termExact T "alias_Pi_family"
-        else FrontierKey.termExact T "alias_Sigma_family"
+        -- Π/Σ aliases on the classifier hosts are counted distinctly.
+        FrontierKey.termExact T nm
       else if isCtorNeighborhoodTerm nm then
         FrontierKey.termExact T nm
       else if isSchemaNameFor nm T then
@@ -259,13 +259,10 @@ def endoKeysForUniverseOnly (actions : List AtomicDecl) : List FrontierKey :=
     let tns := tfNamesIn ts
     tns.foldl (fun acc h =>
       let base : List FrontierKey :=
-        [ FrontierKey.compElim s!"rec_{h}"
+        [ FrontierKey.elim h
+        , FrontierKey.compElim s!"rec_{h}"
         , FrontierKey.termExact h s!"schema_{h}" ]
-      -- Match unit-test policy: for non-classifier TFs, suppress only the eliminator,
-      -- not the constructor. (Pi/Sigma handled elsewhere by keying rules.)
-      let extra : List FrontierKey :=
-        if h == "Pi" || h == "Sigma" then [] else [FrontierKey.elim h]
-      acc ++ extra ++ base) []
+      acc ++ base) []
   else
     []
 
