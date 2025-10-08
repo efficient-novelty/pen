@@ -197,6 +197,42 @@ Axiom 3 schema keying:
         if acc.any (· == n) then acc else acc ++ [n]
     | _ => acc) []
 
+/-- Collect all host type names that appear anywhere in an actions list. -/
+def allHostsInActions (actions : List AtomicDecl) : List String :=
+  actions.foldl
+    (fun acc a =>
+      match a with
+      | .declareTypeFormer n    => if acc.any (· == n) then acc else acc ++ [n]
+      | .declareConstructor _ T => if acc.any (· == T) then acc else acc ++ [T]
+      | .declareEliminator  _ T => if acc.any (· == T) then acc else acc ++ [T]
+      | .declareTerm       _ T  => if acc.any (· == T) then acc else acc ++ [T]
+      | _ => acc)
+    []
+
+@[inline] def isUniverseDecl : AtomicDecl → Bool
+  | .declareUniverse _ => true
+  | _                  => false
+
+@[inline] def allUniversesOnlyTargets (ts : List AtomicDecl) : Bool :=
+  ts.all isUniverseDecl
+
+/--
+Treat everything unlocked by universes alone as endogenous:
+suppress TF, ctor/elim, comp(rec_h), schema_h, and the Π/Σ alias families
+on all hosts present in the actions menu.
+-/
+def endoKeysForUniverseOnly (actions : List AtomicDecl) : List FrontierKey :=
+  let hosts := allHostsInActions actions
+  let tfKey : List FrontierKey := [FrontierKey.typeFormer]
+  let ctorK := hosts.map FrontierKey.ctor
+  let elimK := hosts.map FrontierKey.elim
+  let compK := hosts.map (fun h => FrontierKey.compElim s!"rec_{h}")
+  let termK := hosts.map FrontierKey.term
+  let schemaK := hosts.map (fun h => FrontierKey.termExact h s!"schema_{h}")
+  let piFamK := hosts.map (fun h => FrontierKey.termExact h "alias_Pi_family")
+  let sigmaFamK := hosts.map (fun h => FrontierKey.termExact h "alias_Sigma_family")
+  dedupBEq (tfKey ++ ctorK ++ elimK ++ compK ++ termK ++ schemaK ++ piFamK ++ sigmaFamK)
+
 /-- Endogenous attachments for any TF-only bundle (incl. classifiers):
     • ctor(host), elim(host), comp(rec_host), schema_host.
     (Do NOT include Π/Σ alias keys here — they are intended to score.) -/
