@@ -742,9 +742,7 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
     if isPureClassifierTFSet X.targets || isClassifierTFSetWithInfra X.targets then
       let hasPiSigma := containsTF "Pi" X.targets && containsTF "Sigma" X.targets
       if hasPiSigma && H ≥ 3 then
-        let base := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
-        let base' := if H ≤ 3 then keepOnePiSigmaAlias base "alias_arrow" else base
-        base'
+        PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms cfg.actions
       else
         cfg.actions
     else if isClassifierTFSolo X.targets then
@@ -1092,9 +1090,7 @@ def evalPkg? (st : EngineState) (H : Nat) (bar : Float) (pkg : Pkg)
               if isPureClassifierTFSet targetsSealed || isClassifierTFSetWithInfra targetsSealed then
                 let hasPiSigma := containsTF "Pi" targetsSealed && containsTF "Sigma" targetsSealed
                 if hasPiSigma && H ≥ 3 then
-                  let base := PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
-                  let base' := if H ≤ 3 then keepOnePiSigmaAlias base "alias_arrow" else base
-                  base'
+                  PEN.Novelty.Enumerators.actionsWithPiSigmaAliasTerms actionsWithMaps
                 else
                   actionsWithMaps
               else
