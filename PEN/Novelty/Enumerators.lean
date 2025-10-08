@@ -60,6 +60,21 @@ def enumPiSigmaAliasesOnNonClassifiers : FrontierEnumerator :=
         piAliases ++ sigmaAliases
       dedupBEq (hosts.foldl (fun acc h => acc ++ perHost h) [])
 
+/-- Prefer a canonical Π/Σ alias on each classifier host (Π, Σ).
+    We pick the first preferred alias that is not yet present; if all are
+    already installed we emit nothing for that host. -/
+def enumPiSigmaAliasesOnClassifiers : FrontierEnumerator :=
+  fun Γ =>
+    let pick (T : String) (prefs : List String) : List AtomicDecl :=
+      if Γ.hasTypeFormer T then
+        match prefs.find? (fun nm => not (Γ.hasTerm nm)) with
+        | some nm => [AtomicDecl.declareTerm nm T]
+        | none    => []
+      else
+        []
+    (pick "Pi"    ["alias_arrow", "alias_forall", "alias_eval"]) ++
+    (pick "Sigma" ["alias_prod", "alias_exists"])
+
 
 
 /-- Augment an actions list with Π/Σ alias declareTerm steps for a given host. -/

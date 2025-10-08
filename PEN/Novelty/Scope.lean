@@ -177,7 +177,8 @@ Axiom 3 schema keying:
       if isClassifierTFName T && isSchemaNameFor nm T then
         FrontierKey.typeFormer   -- classifier schema is endogenous
       else if isClassifierTFName T && isPiSigmaAlias nm T then
-        FrontierKey.termExact T nm   -- Π/Σ aliases count distinctly on classifiers
+        if isPiAliasName nm then FrontierKey.termExact T "alias_Pi_family"
+        else FrontierKey.termExact T "alias_Sigma_family"
       else if isCtorNeighborhoodTerm nm then
         FrontierKey.termExact T nm
       else if isSchemaNameFor nm T then
