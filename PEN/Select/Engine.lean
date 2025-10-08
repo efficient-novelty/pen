@@ -452,16 +452,24 @@ deriving Repr
 
 /-- Build the ScopeConfig for a package at the current horizon. -/
 @[inline] def mkScope (pkg : Pkg) (H : Nat) (_hist : History) : ScopeConfig :=
+  let baseKeys :=
+    PEN.Novelty.Scope.dedupBEq
+      (keysOfTargets pkg.targets
+       ++ endoKeysForTFSet pkg.targets)
+  -- If this package installs only universes, treat everything unlocked by
+  -- universes alone as endogenous by masking out the library keys.
+  let uniMask :=
+    if PEN.Novelty.Scope.allUniversesOnlyTargets pkg.targets then
+      PEN.Novelty.Scope.endoKeysForUniverseOnly pkg.actions
+    else
+      []
   { actions       := pkg.actions
     enumerators   := pkg.enumerators
     horizon       := H
     preMaxDepth?  := some H
     postMaxDepth? := some H
     exclude       := pkg.targets
-    excludeKeys   :=
-      PEN.Novelty.Scope.dedupBEq
-        (keysOfTargets pkg.targets
-         ++ endoKeysForTFSet pkg.targets) }
+    excludeKeys   := PEN.Novelty.Scope.dedupBEq (baseKeys ++ uniMask) }
 
 @[inline] def isUnitTF : AtomicDecl → Bool
   | .declareTypeFormer "Unit" => true | _ => false
