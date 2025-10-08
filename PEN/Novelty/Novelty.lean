@@ -243,9 +243,14 @@ def frontierAllScoped (B post : Context) (sc : ScopeConfig) : List FrontierEntry
     sc.enumerators.foldl (fun acc en => acc ++ en post) []
   let allTargets := PEN.Novelty.Scope.dedupBEq (sc.actions ++ enumAdds)
   let excluded   := PEN.Novelty.Scope.dedupBEq sc.exclude
-  let cands      := allTargets.filter (fun y =>
+  let baseCands  := allTargets.filter (fun y =>
     (not (PEN.Novelty.Scope.memBEq y excluded))
     && (not (hasKey sc.excludeKeys y)))
+  let cands      :=
+    if sc.exclude.isEmpty then
+      baseCands
+    else
+      baseCands.filter (fun y => dependsOnTargets y sc.exclude)
   let dists      := PEN.Novelty.Scope.postDistances post sc.actions postBudget
   let kPostOf (t : AtomicDecl) : Option Nat :=
     (dists.find? (fun p => p.fst == t)).map (·.snd)
