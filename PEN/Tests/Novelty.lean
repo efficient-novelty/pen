@@ -57,7 +57,8 @@ def actionsPiSigma : List AtomicDecl :=
   , declareCompRule "rec_Sigma" "pair_Sigma"
   ]
 
-  -- ν(Unit)=2 under our Axiom 3 keying: star contributes +1 and the self bonus adds +1.
+  -- ν(Unit)=1 under the keying: star contributes +1;
+  -- rec_Unit and comp(rec_Unit) are endogenous and do not score.
   #eval
     let B      := Context.empty
     let H      := 2

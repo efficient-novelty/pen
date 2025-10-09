@@ -255,17 +255,20 @@ def endoKeysForUniverseOnly (actions : List AtomicDecl) : List FrontierKey :=
     • ctor(host), elim(host), comp(rec_host), schema_host.
     (Do NOT include Π/Σ alias keys here — they are intended to score.) -/
 @[inline] def endoKeysForTFSet (ts : List AtomicDecl) : List FrontierKey :=
-  if allTFOnly ts then
-    let tns := tfNamesIn ts
-    tns.foldl (fun acc h =>
-      let base : List FrontierKey :=
-        [ FrontierKey.ctor h
-        , FrontierKey.elim h
-        , FrontierKey.compElim s!"rec_{h}"
-        , FrontierKey.termExact h s!"schema_{h}" ]
-      acc ++ base) []
-  else
-    []
+  -- Policy: eliminators, their computation rules, and schemas are endogenous for all hosts.
+  -- Constructors are endogenous only for classifier type formers (Π, Σ, Man).
+  let tns := tfNamesIn ts
+  if tns.isEmpty then [] else
+  tns.foldl (fun acc h =>
+    let elimKeys : List FrontierKey :=
+      [ FrontierKey.elim h
+      , FrontierKey.compElim s!"rec_{h}"
+      , FrontierKey.termExact h s!"schema_{h}"
+      ]
+    let ctorKeys : List FrontierKey :=
+      if isClassifierTFName h then [FrontierKey.ctor h] else []
+    acc ++ (elimKeys ++ ctorKeys)
+  ) []
 
 
 @[inline] def declDependsOn (y x : AtomicDecl) : Bool :=
