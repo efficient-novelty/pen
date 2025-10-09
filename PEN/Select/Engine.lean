@@ -820,11 +820,18 @@ def evalX? (cfg : DiscoverConfig) (st : EngineState) (H : Nat) (bar : Float) (X 
   let baseKeys :=
     keysOfTargets exTargets ++ hostSuppress ++ elimSuppress
 
+  -- compute endogenous keys from the type-former slice only (ignore infra atoms)
+  let tfTargets := targetsCore.filter (fun a => match a with
+    | .declareTypeFormer _ => true
+    | _ => false)
+
+  let endoRaw := endoKeysForTFSet tfTargets
+
   let endo' :=
     if isPiSigmaDual targetsCore then
-      (endoKeysForTFSet targetsCore).filter (fun k => !isPiSigmaAliasKey k)
+      endoRaw.filter (fun k => !isPiSigmaAliasKey k)
     else
-      endoKeysForTFSet targetsCore
+      endoRaw
 
   let uniMask :=
     if PEN.Novelty.Scope.allUniversesOnlyTargets X.targets then
