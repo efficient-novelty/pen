@@ -4,5 +4,12 @@ CodexToken
 all.lean
 instructions.md
 codex prompt.md
+.out
+.log
+.aux
+.fls
+.toc
+.gz
+
 
 
