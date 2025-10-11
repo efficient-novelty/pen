@@ -425,9 +425,9 @@ def dumpAllCandidatesAt (τtarget : Nat) : List String :=
      s!"ρ={e.report.rho}  κ={e.report.kX}  ν={e.report.nu}  Δ={e.report.rho - bar}   X={nameOfX e.x.targets}"))
 
 
---#eval demo_rows 5
---#eval dumpAllCandidatesAt 3
-#eval dumpAllCandidatesAt 5
+--#eval demo_rows 21
+#eval dumpAllCandidatesAt 8
+--#eval dumpAllCandidatesAt 5
 
 
 end PEN.Genesis
