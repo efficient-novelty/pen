@@ -1,15 +1,17 @@
 \documentclass[11pt]{article}
 
 % Packages
-\usepackage{amsmath,amssymb,amsthm}
+\usepackage{amsmath,amsthm,amssymb,mathtools}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{hyperref}
 \usepackage{cleveref}
-\usepackage{mathtools}
 \usepackage{enumitem}
+\usepackage{booktabs}
 \usepackage[margin=1in]{geometry}
-\usepackage{tikz-cd}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{tikz-cd}  
 \usepackage{xcolor}
 
 % Theorem environments
@@ -93,7 +95,6 @@ laws, with the golden ratio emerging as the fundamental acceleration constant.
 \end{abstract}
 
 \tableofcontents
-\newpage
 
 \section{Introduction}
 
@@ -1136,27 +1137,35 @@ with small corrections $|\varepsilon_n| \leq 1$ during the bootstrap phase ($n \
 
 Table~\ref{tab:fibonacci-data} presents the empirical data:
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \caption{Empirical Integration Gaps and Realization Times}
 \label{tab:fibonacci-data}
-\begin{tabular}{ccccc}
-\hline
-$n$ & $\Delta_n$ (Observed) & $F_n$ (Fibonacci) & $\tau_n$ (Observed) & $F_{n+1}$ (Fibonacci) \\
-\hline
-1 & 1 & 1 & 1 & 1 \\
-2 & 1 & 1 & 2 & 2 \\
-3 & 2 & 2 & 3 & 3 \\
-4 & 3 & 3 & 5 & 5 \\
-5 & 5 & 5 & 8 & 8 \\
-6 & 8 & 8 & 13 & 13 \\
-7 & 13 & 13 & 21 & 21 \\
-8 & 21 & 21 & 34 & 34 \\
-9 & 34 & 34 & 55 & 55 \\
-10 & 55 & 55 & 89 & 89 \\
-\hline
+\small
+\begin{tabular}{@{}rllrrrr@{}}
+\toprule
+\textbf{ID} & $\boldmath{\tau}$ & \textbf{Structure} & $\boldmath{\nu}$ & $\boldmath{\kappa}$ & $\boldmath{\rho}$ & \textbf{Bar} \\
+\midrule
+R1  & 1    & Universe $U_0 : U_1$                & 1   & 2 & 0.50 & ---  \\
+R2  & 2    & Unit type $\mathbf{1}$              & 1   & 1 & 1.00 & 1.00 \\
+R3  & 3    & Witness $\star : \mathbf{1}$        & 2   & 1 & 2.00 & 1.00 \\
+R4  & 5    & $\Pi/\Sigma$ types                   & 5   & 3 & 1.67 & 1.67 \\
+R5  & 8    & Circle $S^1$                         & 7   & 3 & 2.33 & 2.06 \\
+R6  & 13   & Propositional truncation $\|\cdot\|$ & 8   & 3 & 2.67 & 2.60 \\
+R7  & 21   & 2-Sphere $S^2$                       & 10  & 3 & 3.33 & 2.98 \\
+R8  & 34   & 3-Sphere $S^3 \simeq \mathsf{SU}(2)$ & 18  & 5 & 3.60 & 3.44 \\
+R9  & 55   & Hopf fibration $S^3 \to S^2$        & 17  & 4 & 4.25 & 4.01 \\
+R10 & 89   & Lie groups (generic)                 & 9   & 2 & 4.50 & 4.47 \\
+R11 & 144  & Cohesion                             & 19  & 4 & 4.75 & 4.67 \\
+R12 & 233  & Principal bundle connections         & 26  & 5 & 5.20 & 5.06 \\
+R13 & 377  & Curvature tensors                    & 34  & 6 & 5.67 & 5.53 \\
+R14 & 610  & Metric + frame bundle                & 43  & 7 & 6.14 & 6.05 \\
+R15 & 987  & Hilbert functional                   & 60  & 9 & 6.67 & 6.60 \\
+R16 & 1597 & Dynamical Cohesive Topos             & 150 & 8 & 18.75 & 7.25 \\
+\bottomrule
 \end{tabular}
 \end{table}
+
 
 The regularity is striking: exact Fibonacci values with zero deviation beyond bootstrap. This pattern
 holds identically across four independent implementations (Section~7), spanning foundations with
@@ -1741,31 +1750,37 @@ The implementation enforces level discipline: candidates at level $\mathcal{L}_*
 \subsection{The Genesis Sequence: Overview}
 \label{subsec:genesis-overview}
 
-Running the mechanized system with optimal $k=2$ integration produces a stable, reproducible sequence of mathematical structures. \cref{tab:genesis-sequence} presents the first 16 major realizations, showing the realization time $\tau$, the structure realized, its novelty $\nu$, effort $\kappa$, efficiency $\rho = \nu/\kappa$, and the selection bar that must be cleared.
+Running the mechanized system with optimal $k=2$ integration produces a stable, reproducible sequence of mathematical structures. Table~\ref{tab:genesis-sequence} presents the first 16 major realizations, showing the realization time $\tau$, the structure realized, its novelty $\nu$, effort $\kappa$, efficiency $\rho = \nu/\kappa$, and the selection bar that must be cleared.
 
+\begin{table}[htbp]
+\centering
+\caption{The Genesis Sequence: First Sixteen Realizations}
 \label{tab:genesis-sequence}
-\begin{tabular}{|c|l|c|c|r|r|}
-\hline
-$\tau$ & Structure & $\nu$ & $\kappa$ & $\nu/\kappa$ & Bar $= \phi(\tau) \cdot \Omega(\tau-1)$ \\
-\hline
-1 & Universe $\mathcal{U}_0 : \mathcal{U}_1$ & 1 & 2 & 0.50 & --- \\
-2 & Unit type $\mathbf{1}$ & 1 & 1 & 1.00 & 1.00 \\
-3 & Witness $\star : \mathbf{1}$ & 2 & 1 & 2.00 & 1.00 \\
-5 & $\Pi$/$\Sigma$ types & 5 & 3 & 1.67 & 1.67 \\
-8 & Circle $S^1$ & 7 & 3 & 2.33 & 2.06 \\
-13 & Propositional Truncation & 8 & 3 & 2.67 & 2.60 \\
-21 & Higher sphere $S^2$ & 10 & 3 & 3.33 & 2.98 \\
-34 & $3$-Sphere $S^3 \cong \mathrm{SU}(2)$ & 18 & 5 & 3.60 & 3.44 \\
-55 & Hopf fibration $S^3 \to S^2$ & 17 & 4 & 4.25 & 4.01 \\
-89 & Generic Lie groups & 9 & 2 & 4.50 & 4.47 \\
-144 & Cohesion & 19 & 4 & 4.75 & 4.67 \\
-233 & Principal bundle connections & 26 & 5 & 5.20 & 5.06 \\
-377 & Curvature tensors & 34 & 6 & 5.67 & 5.53 \\
-610 & Metric + orthonormal frame bundle & 43 & 7 & 6.14 & 6.05 \\
-987 & Hilbert functional on Riemannian metrics & 60 & 9 & 6.67 & 6.60 \\
-1597 & Dynamical Cohesive Topos & 150 & 8 & 18.75 & 7.25 \\
-\hline
+\small
+\begin{tabular}{@{}rllrrrr@{}}
+\toprule
+\textbf{ID} & $\boldmath{\tau}$ & \textbf{Structure} & $\boldmath{\nu}$ & $\boldmath{\kappa}$ & $\boldmath{\rho}$ & \textbf{Bar} \\
+\midrule
+R1  & 1    & Universe $U_0 : U_1$                & 1   & 2 & 0.50 & ---  \\
+R2  & 2    & Unit type $\mathbf{1}$              & 1   & 1 & 1.00 & 1.00 \\
+R3  & 3    & Witness $\star : \mathbf{1}$        & 2   & 1 & 2.00 & 1.00 \\
+R4  & 5    & $\Pi/\Sigma$ types                   & 5   & 3 & 1.67 & 1.67 \\
+R5  & 8    & Circle $S^1$                         & 7   & 3 & 2.33 & 2.06 \\
+R6  & 13   & Propositional truncation $\|\cdot\|$ & 8   & 3 & 2.67 & 2.60 \\
+R7  & 21   & 2-Sphere $S^2$                       & 10  & 3 & 3.33 & 2.98 \\
+R8  & 34   & 3-Sphere $S^3 \simeq \mathsf{SU}(2)$ & 18  & 5 & 3.60 & 3.44 \\
+R9  & 55   & Hopf fibration $S^3 \to S^2$        & 17  & 4 & 4.25 & 4.01 \\
+R10 & 89   & Lie groups (generic)                 & 9   & 2 & 4.50 & 4.47 \\
+R11 & 144  & Cohesion                             & 19  & 4 & 4.75 & 4.67 \\
+R12 & 233  & Principal bundle connections         & 26  & 5 & 5.20 & 5.06 \\
+R13 & 377  & Curvature tensors                    & 34  & 6 & 5.67 & 5.53 \\
+R14 & 610  & Metric + frame bundle                & 43  & 7 & 6.14 & 6.05 \\
+R15 & 987  & Hilbert functional                   & 60  & 9 & 6.67 & 6.60 \\
+R16 & 1597 & Dynamical Cohesive Topos             & 150 & 8 & 18.75 & 7.25 \\
+\bottomrule
 \end{tabular}
+\end{table}
+
 
 \begin{remark}[Observable Patterns]
 \label{rem:genesis-patterns}
@@ -1897,7 +1912,6 @@ Complete source code, documentation, certificate logs, and test suites are avail
 The repository includes:
 \begin{itemize}
 \item Core Lean 4 implementation (\texttt{src/PEN/})
-\item Alternative foundation implementations (HoTT, STT, Higher OTT, MLTT)
 \item Certificate verification tools
 \item Visualization scripts for efficiency evolution and frontier growth
 \item Jupyter notebooks replicating all figures and statistical analyses

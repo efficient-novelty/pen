@@ -23,13 +23,13 @@ The definitive presentation of this research is in the two companion papers. **T
 
       * **Title:** *The Principle of Efficient Novelty: Fibonacci Timing and Coherence Theorems in Type Theory*
       * **Focus:** Establishes the formal PEN framework, proves the four core theorems (Unbounded Growth, 2-Layer Optimality, No-Go Theorem, Complexity Scaling), and presents the cross-foundational validation.
-      * **\[Link to Paper 1 PDF\]** *(\<- Replace with your public link, e.g., from Google Drive or your future website)*
+      * **(https://github.com/efficient-novelty/pen/blob/main/pen_cst.pdf)** 
 
   * **Part II: The Content**
 
       * **Title:** *The Genesis Sequence: Emergent Mathematical Structures from Efficient Novelty*
       * **Focus:** Provides a detailed analysis of the first sixteen emergent structures, explains patterns like absorption and geometric dominance, and provides a full technical exposition of the novel Dynamical Cohesive Topos.
-      * **\[Link to Paper 2 PDF\]** *(\<- Replace with your public link)*
+      * **[\\[Link to Paper 2 PDF\\]](https://github.com/efficient-novelty/pen/blob/main/pen_genesis.pdf)** 
 
 ## Project Status & Code
 
