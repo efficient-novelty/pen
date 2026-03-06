@@ -38,6 +38,21 @@ This repository contains the complete Lean 4 implementation used to generate and
 
 **Please Note:** This is a research prototype. The code is provided for transparency and reproducibility. While largely complete, it is a work-in-progress and may contain minor bugs. The CI/CD infrastructure is not yet fully configured, so automated test reports may not reflect the correct status of the codebase. The papers should be considered the canonical source.
 
+### Blind discovery executable and compliance checks
+
+This repo includes a dedicated Lane 1 executable, `discover_blind`, intended for fail-closed blind discovery runs.
+
+- Print defaults: `discover_blind --print-config`
+- Emit machine-readable blind ledger rows: `discover_blind --ticks <n> --ledger-format jsonl|csv`
+- Run compliance suite: `make test-blindness`
+- Generate baseline blind artifacts: `make lane1-baseline`
+- Replay and verify baseline: `make lane1-replay`
+
+The blindness CI job is named `test:blindness` (`.github/workflows/blindness.yml`).
+The publication gate job is `lane1-release-gate` (`.github/workflows/lane1-release-gate.yml`) and is activated when `docs/LANE1_CLAIM.md` exists.
+
+Baseline outputs are written to `artifacts/lane1/baseline/`, including auto-generated `evidence_table.md` for manuscript linkage.
+
 ### Repository Structure
 
 The core logic is found in the `PEN/` directory:
