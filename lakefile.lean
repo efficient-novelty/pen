@@ -26,6 +26,10 @@ lean_lib «PEN» where
   -- You can add `globs := #["PEN/*"]` if you later split multiple packages.
   -- By default, Lake finds files under `PEN/` matching the module namespace.
 
+/-- Dedicated executable for Lane 1 blind discovery. --/
+lean_exe discover_blind where
+  root := `DiscoverBlind
+
 /-- Build API docs into `build/doc` using doc-gen4. --/
 script doc (args) do
   let _ ← IO.Process.run {

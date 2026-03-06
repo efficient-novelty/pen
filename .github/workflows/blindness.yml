@@ -1,0 +1,26 @@
+name: Blindness Compliance
+
+on:
+  pull_request:
+  push:
+    branches: [ main, work ]
+
+jobs:
+  test-blindness:
+    name: test:blindness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan + lake
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Verify toolchain
+        run: |
+          lake --version
+          lean --version
+
+      - name: Run blindness compliance suite
+        run: ./scripts/test_blindness.sh
