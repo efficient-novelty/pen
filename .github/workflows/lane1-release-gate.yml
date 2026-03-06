@@ -1,0 +1,21 @@
+name: Lane1 Release Gate
+
+on:
+  pull_request:
+  push:
+    branches: [ main, work ]
+
+jobs:
+  lane1-release-gate:
+    name: lane1-release-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan + lake
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Run Lane 1 release gate checks
+        run: ./scripts/check_lane1_release_gate.sh

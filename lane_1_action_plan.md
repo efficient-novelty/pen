@@ -31,22 +31,27 @@
 7. **Create a provenance manifest for each blind run.**  
    Auto-write a manifest containing git SHA, executable name, config hash, seed, and explicit boolean attestations for each blind constraint.
    - **Done when:** manifest is generated on each run and referenced by ledger/artifacts.
+   - **Status:** ✅ Implemented via `scripts/run_blind_capture.sh` (`manifest.json`, `summary.json`).
 
 8. **Run a baseline blind benchmark and publish raw artifacts.**  
    Execute `discover_blind` under fixed seeds/budgets; publish full ledgers, manifest, and summary table without post-hoc editing.
    - **Done when:** artifact bundle is reproducible from clean checkout with documented commands.
+   - **Status:** ✅ Implemented via `scripts/run_lane1_baseline.sh` + `artifacts/lane1/baseline/reproduce.sh` generation flow.
 
 9. **Add a paper-ready Lane 1 evidence table with source transparency.**  
    Build a compact table showing recovered prefix length, source mix (ENUM/MCTS/REF), divergence onset, and note that REF must be 0% in Lane 1.
    - **Done when:** table is auto-generated from blind ledgers and linked in manuscript.
+   - **Status:** ✅ Implemented via `scripts/generate_lane1_evidence_table.py` -> `evidence_table.md`.
 
 10. **Add an independent replay script for reviewer verification.**  
    Provide a one-command replay that re-runs blind discovery and checks hash/shape consistency of ledger + manifest outputs.
    - **Done when:** replay passes on CI and in a clean local/container environment.
+   - **Status:** ✅ Implemented via `scripts/replay_lane1_blind.sh` (`make lane1-replay`).
 
 11. **Install release gating: no Lane 1 claim without compliance artifacts.**  
    Add a pre-release checklist requiring blind compliance tests, baseline artifacts, replay success, and zero REF usage in Lane 1 outputs.
    - **Done when:** checklist is part of release PR template and blocks publication claims when unmet.
+   - **Status:** ✅ Implemented via `.github/PULL_REQUEST_TEMPLATE.md`, `scripts/check_lane1_release_gate.sh`, and CI workflow `lane1-release-gate.yml` (gated when `docs/LANE1_CLAIM.md` exists).
 
 ## Definition of success for Lane 1
 

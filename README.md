@@ -45,8 +45,13 @@ This repo includes a dedicated Lane 1 executable, `discover_blind`, intended for
 - Print defaults: `discover_blind --print-config`
 - Emit machine-readable blind ledger rows: `discover_blind --ticks <n> --ledger-format jsonl|csv`
 - Run compliance suite: `make test-blindness`
+- Generate baseline blind artifacts: `make lane1-baseline`
+- Replay and verify baseline: `make lane1-replay`
 
 The blindness CI job is named `test:blindness` (`.github/workflows/blindness.yml`).
+The publication gate job is `lane1-release-gate` (`.github/workflows/lane1-release-gate.yml`) and is activated when `docs/LANE1_CLAIM.md` exists.
+
+Baseline outputs are written to `artifacts/lane1/baseline/`, including auto-generated `evidence_table.md` for manuscript linkage.
 
 ### Repository Structure
 
