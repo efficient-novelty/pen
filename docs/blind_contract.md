@@ -22,14 +22,33 @@ If any prohibited feature is enabled or reachable, `discover_blind` MUST fail cl
 
 ## 2) Allowed inputs for blind runs
 
-`discover_blind` MAY use only:
+`discover_blind` MAY use only the following categories of inputs:
 
-- The declared finite action alphabet for discovery.
-- The current context/state, horizon policy, and selector policy as formally documented.
-- General search controls (budget, seeds, timeout, deterministic settings).
-- Structural scoring features that do not encode canonical target identity.
+1. **Declared finite discovery action alphabet** used for admissibility and novelty computations.
+2. **Current runtime state** (context/state, horizon policy, selector policy) exactly as documented for discovery mode.
+3. **General search controls** that do not carry target knowledge (`budget`, `seed`, `timeout`, deterministic/reproducibility toggles).
+4. **Structural scoring features** that are target-agnostic (i.e., they cannot encode canonical milestone identity or step-index guidance).
 
-Allowed does **not** mean unlogged: all active controls must be emitted in run metadata.
+### Explicit allowlist examples
+
+- Allowed: exploration budget caps, RNG seed, timeout, frontier width limits, deterministic mode flags.
+- Allowed: structural complexity/effort measures derived from currently reachable states.
+- Not allowed under this section: anything keyed to canonical names, milestone indices, paper tables, or acceptance reference assets (prohibited in Section 1).
+
+### Metadata obligation for allowed controls
+
+“Allowed” does **not** mean “unlogged.” Every active control in this section MUST be emitted in run metadata/manifest, including:
+
+- `action_alphabet_id` (or equivalent hash/version identifier)
+- `selector_policy`
+- `horizon_policy`
+- `budget`
+- `seed`
+- `timeout`
+- `deterministic_mode`
+- `config_hash`
+
+A Lane 1 run is non-compliant if any active allowed control is omitted from metadata.
 
 ---
 
