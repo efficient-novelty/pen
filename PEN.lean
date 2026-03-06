@@ -14,6 +14,7 @@ import PEN.Cert.Types
 import PEN.Cert.Check
 import PEN.Genesis
 import PEN.Select.Discover
+import PEN.Acceptance.ReferenceAssets
 import PEN.Tests.Novelty
 
 /-!
